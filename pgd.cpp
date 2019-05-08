@@ -121,25 +121,34 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
                 if (child1->idx >= child2->idx) // don't do the same pair redundantly
                     continue;
 
+                // intersection is the number of eliminated edges
                 int intersect = nedges(child1, child2);
 
                 // check for crossings
                 int diff1 = child1->neighbours.size() - intersect;
                 int diff2 = child2->neighbours.size() - intersect;
                 bool connected = child1->neighbours.find(child2) != child1->neighbours.end();
+                int crossings = diff1 + diff2 - (connected?2:0);
 
-                //bool merge1 = (child1->children.size()!=0) && (diff1!=0);
-                //bool merge2 = (child2->children.size()!=0) && (diff2!=0);
+                // punish extra modules
+                // but don't penalise when either child is a leaf, because it cannot ever be merged
+                int modules = (child1->children.size()==0 || child2->children.size()==0)? 0 :
+                              (diff1==0 && diff2==0)? -1 :
+                              (diff1!=0 && diff2!=0)? 1 : 0;
 
-                // check for extra module weights
-                // don't penalise when a child is a leaf, because it cannot be merged
-                bool mod1 = (child1->children.size()==0) || (diff1==0);
-                bool mod2 = (child2->children.size()==0) || (diff2==0);
+                // if (child1->children.size()==0 || child2->children.size()==0)
+                //     modules = 0;
+                // else if (child1->neighbours.size()==intersect && child2->neighbours.size()==intersect)
+                //     modules = -1;
+                // else if (child1->neighbours.size()!=intersect && child2->neighbours.size()!=intersect)
+                //     modules = 1;
+                // else
+                //     modules = 0;
 
                 // add points for edges and modules
                 int score = intersect * edge_score
-                            + ((mod1?1:0)+(mod2?1:0)-1) * module_score
-                            - ((diff1+diff2)-(connected?2:0)) * crossing_score;
+                            - modules * module_score
+                            - crossings * crossing_score;
                             // TODO: be sure that this crossing score makes sense
 
                 std::cerr << child1->idx << " " << child2->idx << " " << score << std::endl;
