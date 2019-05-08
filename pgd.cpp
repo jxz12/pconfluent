@@ -13,10 +13,26 @@ struct module
     //       may also be better to not use a root module
     unordered_set<module*> neighbours;
     unordered_set<module*> children;
-    module(int idx) : idx(idx), neighbours(), children() {}
-};
 
-module* init_modules_undirected(int n, int m, int* I, int* J)
+    module(int idx);
+    module(int n, int m, int* I, int* J);
+};
+void delete_dfs(module* root);
+
+int nedges(const unordered_set<module*>& Nm, const unordered_set<module*>& Nn);
+int nedges(const module* m, const module* n);
+void pgd(module* root, int edge_score, int module_score);
+
+void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& Ip, vector<int>& Jp);
+void add_power_edges(const module* parent, vector<int>& Ip, vector<int>& Jp);
+void add_routing_edges(const module* parent, vector<int>& Ir, vector<int>& Jr);
+
+
+module::module(int idx) : idx(idx), neighbours(), children()
+{}
+
+// this initializes the module into a super module connected to trivial top modules
+module::module(int n, int m, int* I, int* J) : idx(n)
 {
     // used to make graph undirected, in case it is not already
     vector<unordered_set<int>> undirected(n);
@@ -34,7 +50,7 @@ module* init_modules_undirected(int n, int m, int* I, int* J)
         if (i >= n || j >= n)
             throw "i or j bigger than n";
 
-        if (undirected[j].find(i) == undirected[j].end()) // if edge not seen
+        if (undirected[j].find(i) == undirected[j].end()) // cuts out repeat edges
         {
             undirected[i].insert(j);
             undirected[j].insert(i);
@@ -42,27 +58,19 @@ module* init_modules_undirected(int n, int m, int* I, int* J)
             leaves[j]->neighbours.insert(leaves[i]);
         }
     }
-    module* root = new module(-1);
     for (int i=0; i<n; i++)
     {
-        root->children.insert(leaves[i]);
+        children.insert(leaves[i]);
     }
-    return root;
 }
 
-void print_dfs(module* parent)
+void delete_dfs(module* parent)
 {
-    std::cout << parent->idx << ": ";
-    for (auto neighbour : parent->neighbours)
-    {
-        std::cout << neighbour->idx << " ";
-    }
-    std::cout << std::endl;
-
     for (auto child : parent->children)
     {
-        print_dfs(child);
+        delete_dfs(child);
     }
+    delete parent;
 }
 
 // almost exactly the same function as in the Dwyer paper,
@@ -92,16 +100,21 @@ int nedges(const module* m, const module* n)
         return nedges(n->neighbours, m->neighbours);
     }
 }
-void pgd(module* root)
+void pgd(module* root, int edge_score=1, int module_score=1)
 {
-    int new_module_idx = root->children.size(); // assumes a dense indexing
+    int new_module_idx = root->idx + 1; // assumes that root index is bigger than all leaves
     while (true)
     {
-        // find best merge
-        // TODO: store these in memory to reduce computation
-        int best_reduction = 0;
+        std::cerr << new_module_idx<< std::endl;
         module* best1;
         module* best2;
+
+        // TODO: store these in memory to reduce computation
+        bool best_merge1;
+        bool best_merge2;
+        int best_score=0;
+
+        // find best merge
         for (auto child1 : root->children)
         {
             for (auto child2 : root->children)
@@ -109,26 +122,32 @@ void pgd(module* root)
                 if (child1->idx >= child2->idx) // don't do the same pair redundantly
                     continue;
 
-                int reduction = nedges(child1, child2);
-                std::cout << child1->idx << " " << child2->idx << " " << reduction << std::endl;
+                int intersect = nedges(child1, child2);
+                bool merge1 = (child1->children.size()!=0) && (child1->neighbours.size()==intersect);
+                bool merge2 = (child2->children.size()!=0) && (child2->neighbours.size()==intersect);
+
+                // add points for edges and modules
+                int score = intersect*edge_score + ((merge1?1:0)+(merge2?1:0))*module_score;
+
+                std::cerr << child1->idx << " " << child2->idx << " " << score << std::endl;
                 
-                if (reduction > best_reduction)
+                if (score > best_score)
                 {
-                    best_reduction = reduction;
                     best1 = child1;
                     best2 = child2;
+                    best_merge1 = merge1;
+                    best_merge2 = merge2;
+                    best_score = score;
                 }
             }
         }
-        if (best_reduction == 0)
+        // TODO: possible infinite loop
+        if (best_score <= 0)
             break;
 
-        // check for merge types
-        bool merge1 = (best1->children.size()!=0) && (best1->neighbours.size()==best_reduction);
-        bool merge2 = (best2->children.size()!=0) && (best2->neighbours.size()==best_reduction);
-
+        // perform the merge itself
         // TODO: only iterate through the smaller sets in the following for loops
-        if (merge1 && merge2) // full merge
+        if (best_merge1 && best_merge2) // full merge
         {
             // both neighbour sets are the same
             // therefore just delete one of them, the other adopting their children
@@ -139,7 +158,7 @@ void pgd(module* root)
             root->children.erase(best2);
             delete best2;
         }
-        else if (merge1)
+        else if (best_merge1)
         {
             // best1 will be left with no neighbours, and so is identical to the new parent
             // therefore remove all shared edges in 2, then parent 2 to 1
@@ -150,10 +169,9 @@ void pgd(module* root)
             best1->children.insert(best2);
             root->children.erase(best2);
         }
-        else if (merge2)
+        else if (best_merge2)
         {
-            // best2 will be left with no neighbours, and so is identical to the new parent
-            // therefore remove all shared edges in 1, then parent 1 to 2
+            // above vice versa
             for (auto neighbour : best2->neighbours)
             {
                 best1->neighbours.erase(neighbour);
@@ -164,7 +182,8 @@ void pgd(module* root)
         else // new module
         {
             // create new module and move all shared edges to it, parent both to new
-            module* new_parent = new module(new_module_idx++); // all new indices are >n
+            module* new_parent = new module(new_module_idx++);
+
             for (auto neighbour : best1->neighbours)
             {
                 if (best2->neighbours.find(neighbour) != best2->neighbours.end())
@@ -192,7 +211,42 @@ void pgd(module* root)
     }
 }
 
-// void routing(module* root);
-// returns:
-// n, I, J, I2, J2
-// indices of tree edges, indices of power edges
+// Ir & Jr are routing edges, Ip & Jp are power edges
+// these are all output parameters
+void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& Ip, vector<int>& Jp)
+{
+    for (auto top : root->children) // 'throw away' root
+    {
+        std::cerr << top->idx << std::endl;
+        add_routing_edges(top, Ir, Jr);
+        add_power_edges(top, Ip, Jp);
+    }
+}
+void add_routing_edges(const module* parent, vector<int>& Ir, vector<int>& Jr)
+{
+    for (auto child : parent->children)
+    {
+        std::cerr << "r: " << parent->idx << " " << child->idx << std::endl;
+
+        Ir.push_back(parent->idx);
+        Jr.push_back(child->idx);
+        add_routing_edges(child, Ir, Jr);
+    }
+}
+void add_power_edges(const module* parent, vector<int>& Ip, vector<int>& Jp)
+{
+    for (auto neighbour : parent->neighbours)
+    {
+        std::cerr << "p: " << parent->idx << " " << neighbour->idx << std::endl;
+
+        if (parent->idx < neighbour->idx) // only add edges once
+        {
+            Ip.push_back(parent->idx);
+            Jp.push_back(neighbour->idx);
+        }
+    }
+    for (auto child : parent->children)
+    {
+        add_power_edges(child, Ip, Jp);
+    }
+}
