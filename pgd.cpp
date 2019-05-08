@@ -179,6 +179,11 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
             {
                 best1->children.insert(child);
             }
+            for (auto neighbour : best2->neighbours)
+            {
+                // clear hanging neighbours
+                neighbour->neighbours.erase(best2);
+            }
             root->children.erase(best2);
             delete best2;
         }
@@ -204,7 +209,7 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
                 best1->neighbours.erase(neighbour);
                 neighbour->neighbours.erase(best1);
                 neighbour->neighbours.erase(best2);
-                neighbour->neighbours.insert(best1);
+                neighbour->neighbours.insert(best2);
             }
             best2->children.insert(best1);
             root->children.erase(best1);
