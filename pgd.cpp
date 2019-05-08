@@ -21,7 +21,7 @@ void delete_dfs(module* root);
 
 int nedges(const unordered_set<module*>& Nm, const unordered_set<module*>& Nn);
 int nedges(const module* m, const module* n);
-void pgd(module* root, int edge_score, int module_score);
+void pgd(module* root, int edge_score=1, int module_score=1, int crossing_score=1);
 
 void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& Ip, vector<int>& Jp);
 void add_power_edges(const module* parent, vector<int>& Ip, vector<int>& Jp);
@@ -100,19 +100,18 @@ int nedges(const module* m, const module* n)
         return nedges(n->neighbours, m->neighbours);
     }
 }
-void pgd(module* root, int edge_score=1, int module_score=1)
+void pgd(module* root, int edge_score, int module_score, int crossing_score)
 {
     int new_module_idx = root->idx + 1; // assumes that root index is bigger than all leaves
     while (true)
     {
         std::cerr << new_module_idx<< std::endl;
+
         module* best1;
         module* best2;
-
-        // TODO: store these in memory to reduce computation
-        bool best_merge1;
-        bool best_merge2;
         int best_score=0;
+        int best_intersect=0;
+        // TODO: store these scores in memory to reduce computation
 
         // find best merge
         for (auto child1 : root->children)
@@ -123,11 +122,25 @@ void pgd(module* root, int edge_score=1, int module_score=1)
                     continue;
 
                 int intersect = nedges(child1, child2);
-                bool merge1 = (child1->children.size()!=0) && (child1->neighbours.size()==intersect);
-                bool merge2 = (child2->children.size()!=0) && (child2->neighbours.size()==intersect);
+
+                // check for crossings
+                int diff1 = child1->neighbours.size() - intersect;
+                int diff2 = child2->neighbours.size() - intersect;
+                bool connected = child1->neighbours.find(child2) != child1->neighbours.end();
+
+                //bool merge1 = (child1->children.size()!=0) && (diff1!=0);
+                //bool merge2 = (child2->children.size()!=0) && (diff2!=0);
+
+                // check for extra module weights
+                // don't penalise when a child is a leaf, because it cannot be merged
+                bool mod1 = (child1->children.size()==0) || (diff1==0);
+                bool mod2 = (child2->children.size()==0) || (diff2==0);
 
                 // add points for edges and modules
-                int score = intersect*edge_score + ((merge1?1:0)+(merge2?1:0))*module_score;
+                int score = intersect * edge_score
+                            + ((mod1?1:0)+(mod2?1:0)-1) * module_score
+                            - ((diff1+diff2)-(connected?2:0)) * crossing_score;
+                            // TODO: be sure that this crossing score makes sense
 
                 std::cerr << child1->idx << " " << child2->idx << " " << score << std::endl;
                 
@@ -135,19 +148,21 @@ void pgd(module* root, int edge_score=1, int module_score=1)
                 {
                     best1 = child1;
                     best2 = child2;
-                    best_merge1 = merge1;
-                    best_merge2 = merge2;
                     best_score = score;
+                    best_intersect = intersect;
                 }
             }
         }
         // TODO: possible infinite loop
-        if (best_score <= 0)
+        if (best_score == 0)
             break;
 
         // perform the merge itself
+        bool merge1 = (best1->children.size()!=0) && (best1->neighbours.size()==best_intersect);
+        bool merge2 = (best2->children.size()!=0) && (best2->neighbours.size()==best_intersect);
+        
         // TODO: only iterate through the smaller sets in the following for loops
-        if (best_merge1 && best_merge2) // full merge
+        if (merge1 && merge2) // full merge
         {
             // both neighbour sets are the same
             // therefore just delete one of them, the other adopting their children
@@ -158,23 +173,29 @@ void pgd(module* root, int edge_score=1, int module_score=1)
             root->children.erase(best2);
             delete best2;
         }
-        else if (best_merge1)
+        else if (merge1)
         {
             // best1 will be left with no neighbours, and so is identical to the new parent
             // therefore remove all shared edges in 2, then parent 2 to 1
             for (auto neighbour : best1->neighbours)
             {
                 best2->neighbours.erase(neighbour);
+                neighbour->neighbours.erase(best1);
+                neighbour->neighbours.erase(best2);
+                neighbour->neighbours.insert(best1);
             }
             best1->children.insert(best2);
             root->children.erase(best2);
         }
-        else if (best_merge2)
+        else if (merge2)
         {
             // above vice versa
             for (auto neighbour : best2->neighbours)
             {
                 best1->neighbours.erase(neighbour);
+                neighbour->neighbours.erase(best1);
+                neighbour->neighbours.erase(best2);
+                neighbour->neighbours.insert(best1);
             }
             best2->children.insert(best1);
             root->children.erase(best1);
@@ -197,7 +218,7 @@ void pgd(module* root, int edge_score=1, int module_score=1)
             }
             for (auto neighbour : new_parent->neighbours)
             {
-                // remove from originals
+                // remove shared from originals
                 best1->neighbours.erase(neighbour);
                 best2->neighbours.erase(neighbour);
             }
