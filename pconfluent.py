@@ -1,4 +1,4 @@
-import power as cpp
+# import power as cpp
 import numpy as np
 
 class routing_node:
@@ -17,28 +17,28 @@ class routing_node:
         neighbour.power.append(self)
         
 def init_routing_nodes(Ir, Jr, Ip, Jp):
-    nodes = {}
-    # do routing
+    rnodes = {}
+    # reconstruct hierarchy
     for ij in range(len(Ir)):
         i = Ir[ij]
         j = Jr[ij]
-        if i not in nodes.keys():
-            nodes[i] = routing_node(i)
-        if j not in nodes.keys():
-            nodes[j] = routing_node(j)
+        if i not in rnodes.keys():
+            rnodes[i] = routing_node(i)
+        if j not in rnodes.keys():
+            rnodes[j] = routing_node(j)
 
-        nodes[i].add_child(nodes[j])
+        rnodes[i].add_child(rnodes[j])
 
     # add power edges
     for ij in range(len(Ip)):
         i = Ip[ij]
         j = Jp[ij]
-        nodes[i].add_poweredge(nodes[j])
+        rnodes[i].add_poweredge(rnodes[j])
 
-    # # split crossing-artifact nodes
-    # for node in routing_nodes:
+    # split crossing-artifact nodes
+    #for node in routing_nodes:
 
-    return nodes
+    return rnodes
 
 
 # post-order traversal to init paths to one end
@@ -65,6 +65,26 @@ def finish_paths_to_leaves(node, stack, paths_from, all_paths):
             finish_paths_to_leaves(child, stack, paths_from, all_paths)
     stack.pop()
 
+def find_spline_paths(rnodes, Ip, Jp):
+    all_paths = []
+    for ij in range(len(Ip)):
+        i = Ip[ij]
+        j = Jp[ij]
+        paths_from = []
+        init_paths_from_leaves(rnodes[i], [], paths_from)
+        finish_paths_to_leaves(rnodes[j], [], paths_from, all_paths)
+
+    return all_paths
+
+M_bspline = 1/6 * np.array([[-1, 3,-3, 1],
+                            [ 3,-6, 3, 0],
+                            [-3, 0, 3, 0],
+                            [ 1, 4, 1, 0]])
+
+def bspline(routing_nodes, path, nseg=50):
+    return
+    
+
 
 # I = [0,0,0, 1,1,1, 2,2,2]
 # J = [3,4,5, 3,4,5, 3,4,5]
@@ -75,16 +95,9 @@ Jr = [0,1,2, 3,4,5]
 Ip = [6]
 Jp = [7]
 
-R = init_routing_nodes(Ir, Jr, Ip, Jp)
+rnodes = init_routing_nodes(Ir, Jr, Ip, Jp)
 
-all_paths = []
-for ij in range(len(Ip)):
-    i = Ip[ij]
-    j = Jp[ij]
-    paths_from = []
-    init_paths_from_leaves(R[i], [], paths_from)
-    finish_paths_to_leaves(R[j], [], paths_from, all_paths)
-
+paths = find_spline_paths(rnodes, Ip, Jp)
 print("paths:")
-print(all_paths)
+print(paths)
 

@@ -20,15 +20,12 @@ void delete_modules(module* root);
 
 void pgd(module* root, int edge_score=1, int module_score=1, int crossing_score=1);
 
-int nedges(const unordered_set<module*>& Nm, const unordered_set<module*>& Nn);
 int nedges(module* m, module* n);
 int nmodules(module* m, module* n, int intersect);
 int ncrossings(module* m, module* n, int intersect);
 
 void routing(int n, int m, int* I, int* J, int* Ir, int* Jr, int* Ip, int* Jp);
 void routing(const module* root, int* Ir, int* Jr, int* Ip, int* Jp);
-void add_routing_edges(const module* parent, vector<int>& Ir, vector<int>& Jr);
-void add_power_edges(const module* parent, vector<int>& Ip, vector<int>& Jp);
 
 
 module::module(int idx) : idx(idx), neighbours(), children()
@@ -259,6 +256,24 @@ int ncrossings(module* m, module* n, int intersect)
     return -crossings;
 }
 
+void reindex_modules(module* root, int& new_idx)
+{
+    if (root->children.size() != 0)
+    {
+        root->idx = new_idx++;
+        for (auto child : root->children)
+        {
+            reindex_modules(child, new_idx);
+        }
+    }
+}
+void reindex_modules_contiguous(module* root, int n_leaves)
+{
+    for (auto top : root->children)
+    {
+        reindex_modules(top, n_leaves);
+    }
+}
 
 // Ir & Jr are routing edges, Ip & Jp are power edges
 // these are all output parameters
@@ -266,28 +281,16 @@ void routing(int n, int m, int* I, int* J, int* Ir, int* Jr, int* Ip, int* Jp)
 {
     // get power graph
     module* root = new module(n, m, I, J);
-    pgd(root);
+    pgd(root, 1, 1, 1);
 
-    // TODO: condense indices here?
+    // condense indices
+    reindex_modules_contiguous(root, n);
 
     // get routing graph
     routing(root, Ir, Jr, Ip, Jp);
+    delete_modules(root);
 }
 
-void routing(const module* root, int* Ir, int* Jr, int* Ip, int* Jp)
-{
-    vector<int> Ir_vec, Jr_vec, Ip_vec, Jp_vec;
-    for (auto top : root->children) // 'throw away' root
-    {
-        std::cerr << "top: " << top->idx << std::endl;
-        add_routing_edges(top, Ir_vec, Jr_vec);
-        add_power_edges(top, Ip_vec, Jp_vec);
-    }
-    Ir = Ir_vec.data();
-    Jr = Jr_vec.data();
-    Ip = Ip_vec.data();
-    Jp = Jp_vec.data();
-}
 void add_routing_edges(const module* parent, vector<int>& Ir, vector<int>& Jr)
 {
     for (auto child : parent->children)
@@ -315,4 +318,19 @@ void add_power_edges(const module* parent, vector<int>& Ip, vector<int>& Jp)
     {
         add_power_edges(child, Ip, Jp);
     }
+}
+
+void routing(const module* root, int* Ir, int* Jr, int* Ip, int* Jp)
+{
+    vector<int> Ir_vec, Jr_vec, Ip_vec, Jp_vec;
+    for (auto top : root->children) // 'throw away' root
+    {
+        std::cerr << "top: " << top->idx << std::endl;
+        add_routing_edges(top, Ir_vec, Jr_vec);
+        add_power_edges(top, Ip_vec, Jp_vec);
+    }
+    Ir = Ir_vec.data();
+    Jr = Jr_vec.data();
+    Ip = Ip_vec.data();
+    Jp = Jp_vec.data();
 }
