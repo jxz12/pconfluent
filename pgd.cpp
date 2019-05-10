@@ -14,7 +14,6 @@ struct module
     unordered_set<module*> children;
 
     module(int idx);
-    // TODO: may be better to not use a root module like this
     module(int n, int m, int* I, int* J, int idx=-1);
 };
 void delete_modules(module* root);
@@ -26,9 +25,10 @@ int nedges(module* m, module* n);
 int nmodules(module* m, module* n, int intersect);
 int ncrossings(module* m, module* n, int intersect);
 
-void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& Ip, vector<int>& Jp);
-void add_power_edges(const module* parent, vector<int>& Ip, vector<int>& Jp);
+void routing(int n, int m, int* I, int* J, int* Ir, int* Jr, int* Ip, int* Jp);
+void routing(const module* root, int* Ir, int* Jr, int* Ip, int* Jp);
 void add_routing_edges(const module* parent, vector<int>& Ir, vector<int>& Jr);
+void add_power_edges(const module* parent, vector<int>& Ip, vector<int>& Jp);
 
 
 module::module(int idx) : idx(idx), neighbours(), children()
@@ -36,6 +36,7 @@ module::module(int idx) : idx(idx), neighbours(), children()
 
 // this initialises the module into a super module connected to trivial top modules
 // it does not matter what idx it takes
+// TODO: may be faster to use a vector rather than a root module like this
 module::module(int n, int m, int* I, int* J, int idx) : idx(idx)
 {
     // used to make graph undirected, in case it is not already
@@ -82,14 +83,12 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
     int new_module_idx = root->children.size(); // assumes that indices are condensed
     while (true)
     {
-        std::cerr << new_module_idx<< std::endl;
-
         module* best1;
         module* best2;
         int best_score=0;
         // TODO: store these scores in memory to reduce computation?
 
-        // find best merge
+        // find best merge out of all possible combinations
         for (auto child1 : root->children)
         {
             for (auto child2 : root->children)
@@ -103,8 +102,8 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
                 int crossings = ncrossings(child1, child2, intersect);
 
                 // sum points for edges and modules
-                int score = intersect*edge_score - modules*module_score - crossings*crossing_score;
-                std::cerr << child1->idx << " " << child2->idx << " " << score << std::endl;
+                int score = intersect*edge_score + modules*module_score + crossings*crossing_score;
+                std::cerr << child1->idx << "+" << child2->idx << "=" << score << std::endl;
                 
                 if (score > best_score)
                 {
@@ -114,17 +113,19 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
                 }
             }
         }
-        // TODO: possible infinite loop?
         if (best_score == 0)
             break;
 
-        // perform the merge itself
+        std::cerr << new_module_idx << std::endl;
+
+        // check if either module will be empty after the merge
         int best_intersect = nedges(best1, best2);
-        bool merge1 = (best1->children.size()!=0) && (best1->neighbours.size()==best_intersect);
-        bool merge2 = (best2->children.size()!=0) && (best2->neighbours.size()==best_intersect);
+        bool empty1 = (best1->children.size()!=0) && (best1->neighbours.size()==best_intersect);
+        bool empty2 = (best2->children.size()!=0) && (best2->neighbours.size()==best_intersect);
         
+        // perform the merge itself
         // TODO: only iterate through the smaller sets in the following for loops
-        if (merge1 && merge2) // full merge
+        if (empty1 && empty1) // full merge
         {
             // both neighbour sets are the same
             // therefore just delete one of them, the other adopting their children
@@ -140,7 +141,7 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
             root->children.erase(best2);
             delete best2;
         }
-        else if (merge1)
+        else if (empty1)
         {
             // best1 will be left with no neighbours, and so is identical to the new parent
             // therefore remove all shared edges in 2, then parent 2 to 1
@@ -154,7 +155,7 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
             best1->children.insert(best2);
             root->children.erase(best2);
         }
-        else if (merge2)
+        else if (empty2)
         {
             // above vice versa
             for (auto neighbour : best2->neighbours)
@@ -167,7 +168,7 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
             best2->children.insert(best1);
             root->children.erase(best1);
         }
-        else // new module
+        else // neither empty, so new module
         {
             // create new module and move all shared edges to it, parent both to new
             module* new_parent = new module(new_module_idx++);
@@ -234,16 +235,16 @@ int nmodules(module* m, module* n, int intersect)
     // if (child1->children.size()==0 || child2->children.size()==0)
     //     modules = 0;
     // else if (child1->neighbours.size()==intersect && child2->neighbours.size()==intersect)
-    //     modules = -1;
-    // else if (child1->neighbours.size()!=intersect && child2->neighbours.size()!=intersect)
     //     modules = 1;
+    // else if (child1->neighbours.size()!=intersect && child2->neighbours.size()!=intersect)
+    //     modules = -1;
     // else
     //     modules = 0;
     // return modules;
 
     return (m->children.size()==0 || n->children.size()==0)? 0 :
-           (m->neighbours.size()==intersect && n->neighbours.size()==intersect)? -1 :
-           (m->neighbours.size()!=intersect && n->neighbours.size()!=intersect)? 1 : 0;
+           (m->neighbours.size()==intersect && n->neighbours.size()==intersect)? 1 :
+           (m->neighbours.size()!=intersect && n->neighbours.size()!=intersect)? -1 : 0;
 }
 int ncrossings(module* m, module* n, int intersect)
 {
@@ -255,21 +256,37 @@ int ncrossings(module* m, module* n, int intersect)
     {
         crossings -= 2;
     }
-    return crossings;
+    return -crossings;
 }
 
 
 // Ir & Jr are routing edges, Ip & Jp are power edges
 // these are all output parameters
-void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& Ip, vector<int>& Jp)
+void routing(int n, int m, int* I, int* J, int* Ir, int* Jr, int* Ip, int* Jp)
 {
-    // TODO: condense indices
+    // get power graph
+    module* root = new module(n, m, I, J);
+    pgd(root);
+
+    // TODO: condense indices here?
+
+    // get routing graph
+    routing(root, Ir, Jr, Ip, Jp);
+}
+
+void routing(const module* root, int* Ir, int* Jr, int* Ip, int* Jp)
+{
+    vector<int> Ir_vec, Jr_vec, Ip_vec, Jp_vec;
     for (auto top : root->children) // 'throw away' root
     {
         std::cerr << "top: " << top->idx << std::endl;
-        add_routing_edges(top, Ir, Jr);
-        add_power_edges(top, Ip, Jp);
+        add_routing_edges(top, Ir_vec, Jr_vec);
+        add_power_edges(top, Ip_vec, Jp_vec);
     }
+    Ir = Ir_vec.data();
+    Jr = Jr_vec.data();
+    Ip = Ip_vec.data();
+    Jp = Jp_vec.data();
 }
 void add_routing_edges(const module* parent, vector<int>& Ir, vector<int>& Jr)
 {
