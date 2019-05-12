@@ -14,10 +14,14 @@
                                   (int* J, int len_J)}
 
 // output edge indices
-%apply (int* ARGOUT_ARRAY1, int DIM1){(int* Ir, int len_Ir),
-                                      (int* Jr, int len_Jr),
-                                      (int* Ip, int len_Ip),
-                                      (int* Jp, int len_Jp)}
+//  %apply (int* ARGOUT_ARRAY1, int DIM1){(int* Ir, int len_Ir),
+//                                        (int* Jr, int len_Jr),
+//                                        (int* Ip, int len_Ip),
+//                                        (int* Jp, int len_Jp)}
+%apply (int* ARGOUT_ARRAY1[ANY]){(int* Ir),
+                                 (int* Jr),
+                                 (int* Ip),
+                                 (int* Jp)}
 
 extern void routing(int n, int m, int* I, int* J, int* Ir, int* Jr, int* Ip, int* Jp);
 
@@ -31,10 +35,10 @@ extern void routing(int n, int m, int* I, int* J, int* Ir, int* Jr, int* Ip, int
     void np_routing(int n,
                     int* I, int len_I,
                     int* J, int len_J,
-                    int* Ir, int len_Ir,
-                    int* Jr, int len_Jr,
-                    int* Ip, int len_Ip,
-                    int* Jp, int len_Jp) {
+                    int* Ir,
+                    int* Jr,
+                    int* Ip,
+                    int* Jp) {
 
         if (len_I != len_J) {
             PyErr_Format(PyExc_ValueError, "arrays of indices do not have same length");
