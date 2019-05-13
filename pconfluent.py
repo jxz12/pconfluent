@@ -8,7 +8,7 @@ class routing_node:
         self.children = []
         self.pout = []
         self.pin = []
-        self.split = False
+        #self.split = False
         
 def reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=False):
     """reconstructs the hierarchy of routing nodes from the edges."""
@@ -47,13 +47,15 @@ def reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=False):
         for node in rnodes.values():
             if len(node.children)>=2 and ((1 if node.parent is not None else 0)+len(node.pout)+len(node.pin))>=2:
                 splitnode = routing_node(new_idx)
-                splitnode.split = True
-                splitnode.parent = node
+                #splitnode.split = True
+
                 splitnode.children = node.children
                 for child in splitnode.children:
                     child.parent = splitnode
 
+                splitnode.parent = node
                 node.children = [splitnode]
+
                 splitnodes.append(splitnode)
                 new_idx += 1
 
@@ -67,18 +69,17 @@ def get_routing_adjacency(rnodes):
     J = []
     # V = []
     for node in rnodes.values():
-        print(node.idx)
         for child in node.children:
             I.append(node.idx)
             J.append(child.idx)
-            # if child.split:
-            #     V.append(.5)
-            # else:
-            #     V.append(1)
+            #if child.split:
+            #    V.append(.5)
+            #else:
+            #    V.append(1)
         for pout in node.pout:
             I.append(node.idx)
             J.append(pout.idx)
-            # V.append(1)
+            #V.append(1)
 
     return I,J#,V
 
@@ -125,11 +126,6 @@ def draw_bspline_quad(layout, path):
         p0 = layout[path[0]]
         p1 = layout[path[1]]
         print('<path d="M {} {} L {} {}"/>'.format(p0[0],p0[1],p1[0],p1[1]))
-    elif m == 3:
-        p00 = layout[path[0]]
-        p01 = layout[path[1]]
-        p11 = layout[path[2]]
-        print('<path d="M {} {} Q {} {} {} {}"/>'.format(p00[0],p00[1],p01[0],p01[1],p11[0],p11[1]))
     else:
         nseg = m - 2
         p00 = layout[path[0]]
@@ -142,6 +138,19 @@ def draw_bspline_quad(layout, path):
             
         p22 = layout[path[-1]]
         print(' {} {}"/>'.format(p22[0],p22[1]))
+    #else:
+    #    p01 = layout[path[0]]
+    #    p12 = layout[path[1]]
+    #    p11 = .5*p01 + .5*p12
+    #    print('<path d="M {} {} L {} {} Q {} {}'.format(p01[0], p01[1], p11[0], p11[1], p12[0], p12[1]), end='')
+
+    #    for i in range(1, len(path)-2):
+    #        p22 = .5*layout[path[i]] + .5*layout[path[i+1]]
+    #        print(' {} {} T'.format(p22[0], p22[1]), end='')
+
+    #    p33 = .5*layout[path[-2]] + .5*layout[path[-1]]
+    #    end = layout[path[-1]]
+    #    print(' {} {} L {} {}"/>'.format(p33[0], p33[1], end[0], end[1]))
 
 def draw_bspline_cubic(layout, path):
     m = len(path)
@@ -151,39 +160,58 @@ def draw_bspline_cubic(layout, path):
         p0 = layout[path[0]]
         p1 = layout[path[1]]
         print('<path d="M {} {} L {} {}"/>'.format(p0[0],p0[1],p1[0],p1[1]))
-    elif m == 3:
-        p000 = layout[path[0]]
-        # p001 = 1/3*layout[path[0]] + 2/3*layout[path[1]]
-        # p011 = 2/3*layout[path[1]] + 1/3*layout[path[2]]
-        p001 = 1/2*layout[path[0]] + 1/2*layout[path[1]]
-        p011 = 1/2*layout[path[1]] + 1/2*layout[path[2]]
-        p111 = layout[path[2]]
-        print('<path d="M {} {} C {} {} {} {} {} {}"/>'.format(p000[0],p000[1],p001[0],p001[1],p011[0],p011[1],p111[0],p111[1]))
-    elif m == 4:
-        p000 = layout[path[0]]
-        p001 = layout[path[1]]
-        p011 = layout[path[2]]
-        p111 = layout[path[3]]
-        print('<path d="M {} {} C {} {} {} {} {} {}"/>'.format(p000[0],p000[1],p001[0],p001[1],p011[0],p011[1],p111[0],p111[1]))
     else:
-        nseg = m - 3
-        p000 = layout[path[0]]
-        p001 = layout[path[1]]
-        p011 = .5*layout[path[1]] + .5*layout[path[2]]
-        print('<path d="M {} {} C {} {} {} {}'.format(p000[0],p000[1],p001[0],p001[1],p011[0],p011[1]), end='')
+        p000 = layout[path[0]] # not strictly correct, but works
+        p112 = 2/3*layout[path[0]] + 1/3*layout[path[1]]
+        p122 = 1/3*layout[path[0]] + 2/3*layout[path[1]]
+        print('<path d="M {} {} C {} {} {} {}'.format(p000[0],p000[1],p112[0],p112[1],p122[0],p122[1]), end='')
 
-        for i in range(2, nseg):
-            p112 = .75*layout[path[i]] + .25*layout[path[i+1]] # symmetric about the knot
-            p111 = .5*p011 + .5*p112 # knot
-            p122 = .25*layout[path[i]] + .75*layout[path[i+1]]
-            print(' {} {} S {} {}'.format(p111[0],p111[1],p122[0],p122[1]), end='')
-            p011 = p122
-            
-        p112 = .5*layout[path[-3]] + .5*layout[path[-2]]
-        p111 = .5*p011 + .5*p112
-        p122 = layout[path[-2]]
-        p222 = layout[path[-1]]
-        print(' {} {} S {} {} {} {}"/>'.format(p111[0],p111[1],p122[0],p122[1],p222[0],p222[1]))
+        for i in range(1, len(path)-1):
+            p123 = layout[path[i]]
+            p234 = layout[path[i+1]]
+            p223 = 2/3*p123 + 1/3*p234
+            p233 = 1/3*p123 + 2/3*p234
+            p222 = .5*p122 + .5*p223
+
+            print(' {} {} S {} {}'.format(p222[0], p222[1], p233[0], p233[1]), end='')
+            p122 = p233
+
+        end = layout[path[-1]]
+        print(' {} {}"/>'.format(end[0], end[1]))
+
+    #elif m == 3:
+    #    p000 = layout[path[0]]
+    #    # p001 = 1/3*layout[path[0]] + 2/3*layout[path[1]]
+    #    # p011 = 2/3*layout[path[1]] + 1/3*layout[path[2]]
+    #    p001 = 1/2*layout[path[0]] + 1/2*layout[path[1]]
+    #    p011 = 1/2*layout[path[1]] + 1/2*layout[path[2]]
+    #    p111 = layout[path[2]]
+    #    print('<path d="M {} {} C {} {} {} {} {} {}"/>'.format(p000[0],p000[1],p001[0],p001[1],p011[0],p011[1],p111[0],p111[1]))
+    #elif m == 4:
+    #    p000 = layout[path[0]]
+    #    p001 = layout[path[1]]
+    #    p011 = layout[path[2]]
+    #    p111 = layout[path[3]]
+    #    print('<path d="M {} {} C {} {} {} {} {} {}"/>'.format(p000[0],p000[1],p001[0],p001[1],p011[0],p011[1],p111[0],p111[1]))
+    #else:
+    #    nseg = m - 3
+    #    p000 = layout[path[0]]
+    #    p001 = layout[path[1]]
+    #    p011 = .5*layout[path[1]] + .5*layout[path[2]]
+    #    print('<path d="M {} {} C {} {} {} {}'.format(p000[0],p000[1],p001[0],p001[1],p011[0],p011[1]), end='')
+
+    #    for i in range(2, nseg):
+    #        p112 = .75*layout[path[i]] + .25*layout[path[i+1]] # symmetric about the knot
+    #        p111 = .5*p011 + .5*p112 # knot
+    #        p122 = .25*layout[path[i]] + .75*layout[path[i+1]]
+    #        print(' {} {} S {} {}'.format(p111[0],p111[1],p122[0],p122[1]), end='')
+    #        p011 = p122
+    #        
+    #    p112 = .5*layout[path[-3]] + .5*layout[path[-2]]
+    #    p111 = .5*p011 + .5*p112
+    #    p122 = layout[path[-2]]
+    #    p222 = layout[path[-1]]
+    #    print(' {} {} S {} {} {} {}"/>'.format(p111[0],p111[1],p122[0],p122[1],p222[0],p222[1]))
 
 # TODO: change number of significant figures for coordinates
 def draw_svg(rnodes, paths, layout, noderadius=.2, linkwidth=.05, width=750, border=50, linkopacity=1):
@@ -209,14 +237,14 @@ def draw_svg(rnodes, paths, layout, noderadius=.2, linkwidth=.05, width=750, bor
 
     # draw splines
     for path in paths:
-        # draw_bspline_quad(X_svg, path)
-        draw_bspline_cubic(X_svg, path)
+        draw_bspline_quad(X_svg, path)
+        #draw_bspline_cubic(X_svg, path)
     # draw nodes
     for node in rnodes.values():
         if len(node.children) == 0:
             print('<circle cx="{}" cy="{}"/>'.format(X_svg[node.idx][0],X_svg[node.idx][1]))
-        else:
-            print('<circle cx="{}" cy="{}" fill="red" fill-opacity=".5"/>'.format(X_svg[node.idx][0],X_svg[node.idx][1]))
+        #else:
+        #    print('<circle cx="{}" cy="{}" fill="red" fill-opacity=".5"/>'.format(X_svg[node.idx][0],X_svg[node.idx][1]))
 
     print('</svg>')
     
