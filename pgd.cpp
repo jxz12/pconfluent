@@ -18,14 +18,16 @@ struct module
 };
 void delete_modules(module* root);
 
-void pgd(module* root, int edge_score=1, int module_score=1, int crossing_score=1);
+void pgd(module* root, int edge_score=2, int module_score=1, int crossing_score=1);
 
 int nedges(module* m, module* n);
 int nmodules(module* m, module* n, int intersect);
 int ncrossings(module* m, module* n, int intersect);
+void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& Ip, vector<int>& Jp);
 
-void routing(int n, int m, int* I, int* J, int* Ir, int* Jr, int* Ip, int* Jp);
-void routing(const module* root, int* Ir, int* Jr, int* Ip, int* Jp);
+void routing_swig(int n, int m, int* I, int* J,
+                  int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
+                  int edge_weight=2, int module_weight=1, int crossing_weight=1);
 
 
 module::module(int idx) : idx(idx), neighbours(), children()
@@ -275,22 +277,6 @@ void reindex_modules_contiguous(module* root, int n_leaves)
     }
 }
 
-// Ir & Jr are routing edges, Ip & Jp are power edges
-// these are all output parameters
-void routing(int n, int m, int* I, int* J, int* Ir, int* Jr, int* Ip, int* Jp)
-{
-    // get power graph
-    module* root = new module(n, m, I, J);
-    pgd(root, 1, 1, 1);
-
-    // condense indices
-    reindex_modules_contiguous(root, n);
-
-    // get routing graph
-    routing(root, Ir, Jr, Ip, Jp);
-    delete_modules(root);
-}
-
 void add_routing_edges(const module* parent, vector<int>& Ir, vector<int>& Jr)
 {
     for (auto child : parent->children)
@@ -320,17 +306,46 @@ void add_power_edges(const module* parent, vector<int>& Ip, vector<int>& Jp)
     }
 }
 
-void routing(const module* root, int* Ir, int* Jr, int* Ip, int* Jp)
+void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& Ip, vector<int>& Jp)
 {
-    vector<int> Ir_vec, Jr_vec, Ip_vec, Jp_vec;
     for (auto top : root->children) // 'throw away' root
     {
         std::cerr << "top: " << top->idx << std::endl;
-        add_routing_edges(top, Ir_vec, Jr_vec);
-        add_power_edges(top, Ip_vec, Jp_vec);
+        add_routing_edges(top, Ir, Jr);
+        add_power_edges(top, Ip, Jp);
     }
-    Ir = Ir_vec.data();
-    Jr = Jr_vec.data();
-    Ip = Ip_vec.data();
-    Jp = Jp_vec.data();
+}
+
+// Ir & Jr are routing edges, Ip & Jp are power edges
+// these are all output parameters
+// to be used in swig
+void routing_swig(int n, int m, int* I, int* J,
+                  int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
+                  int edge_weight, int module_weight, int crossing_weight)
+{
+    // get power graph
+    module* root = new module(n, m, I, J);
+    pgd(root, edge_weight, module_weight, crossing_weight);
+
+    // condense indices
+    reindex_modules_contiguous(root, n);
+
+    // get routing graph
+    vector<int> Ir_vec, Jr_vec, Ip_vec, Jp_vec;
+    routing(root, Ir_vec, Jr_vec, Ip_vec, Jp_vec);
+
+    // force a 'memory leak', so that python has access to the data
+    *len_r = Ir_vec.size();
+    *Ir = new int[*len_r];
+    *Jr = new int[*len_r];
+    std::memcpy(*Ir, Ir_vec.data(), *len_r*sizeof(int));
+    std::memcpy(*Jr, Jr_vec.data(), *len_r*sizeof(int));
+
+    *len_p = Ip_vec.size();
+    *Ip = new int[*len_p];
+    *Jp = new int[*len_p];
+    std::memcpy(*Ip, Ip_vec.data(), *len_p*sizeof(int));
+    std::memcpy(*Jp, Jp_vec.data(), *len_p*sizeof(int));
+
+    delete_modules(root);
 }

@@ -1,5 +1,6 @@
 import pgd as cpp
 import numpy as np
+import s_gd2
 
 class routing_node:
     def __init__(self, idx):
@@ -11,7 +12,7 @@ class routing_node:
         #self.split = False
         
 def reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=False):
-    """reconstructs the hierarchy of routing nodes from the edges."""
+    """reconstructs the hierarchy of routing nodes from its edges."""
     rnodes = {}
     for ij in range(len(Ir)):
         i = Ir[ij]
@@ -40,14 +41,13 @@ def reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=False):
         rnodes[j].pin.append(rnodes[i])
 
     # split crossing-artifact nodes
-    # TODO: make the split edge shorter?
     if nodesplit:
         new_idx = len(rnodes)
         splitnodes = []
         for node in rnodes.values():
+            # children are outgoing, power edges and parents are incoming
             if len(node.children)>=2 and ((1 if node.parent is not None else 0)+len(node.pout)+len(node.pin))>=2:
                 splitnode = routing_node(new_idx)
-                #splitnode.split = True
 
                 splitnode.children = node.children
                 for child in splitnode.children:
@@ -64,24 +64,19 @@ def reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=False):
 
     return rnodes
 
+# TODO: perhaps make split edges shorter
 def get_routing_adjacency(rnodes):
     I = []
     J = []
-    # V = []
     for node in rnodes.values():
         for child in node.children:
             I.append(node.idx)
             J.append(child.idx)
-            #if child.split:
-            #    V.append(.5)
-            #else:
-            #    V.append(1)
         for pout in node.pout:
             I.append(node.idx)
             J.append(pout.idx)
-            #V.append(1)
 
-    return I,J#,V
+    return I,J
 
 # DFS to init paths to one end
 def init_paths_to_leaves(node, stack, paths):
@@ -117,8 +112,8 @@ def find_spline_paths(rnodes):
 
     return all_paths
 
-
 def draw_bspline_quad(layout, path):
+    """draws a quadratic b-spline, with an open knot vector but no repeated control points"""
     m = len(path)
     if m < 2:
         raise "path is less than 2 points long"
@@ -138,21 +133,9 @@ def draw_bspline_quad(layout, path):
             
         p22 = layout[path[-1]]
         print(' {} {}"/>'.format(p22[0],p22[1]))
-    #else:
-    #    p01 = layout[path[0]]
-    #    p12 = layout[path[1]]
-    #    p11 = .5*p01 + .5*p12
-    #    print('<path d="M {} {} L {} {} Q {} {}'.format(p01[0], p01[1], p11[0], p11[1], p12[0], p12[1]), end='')
-
-    #    for i in range(1, len(path)-2):
-    #        p22 = .5*layout[path[i]] + .5*layout[path[i+1]]
-    #        print(' {} {} T'.format(p22[0], p22[1]), end='')
-
-    #    p33 = .5*layout[path[-2]] + .5*layout[path[-1]]
-    #    end = layout[path[-1]]
-    #    print(' {} {} L {} {}"/>'.format(p33[0], p33[1], end[0], end[1]))
 
 def draw_bspline_cubic(layout, path):
+    """draws a cubic b-spline, with an open knot vector and repeated control points"""
     m = len(path)
     if m < 2:
         raise "path is less than 2 points long"
@@ -179,40 +162,6 @@ def draw_bspline_cubic(layout, path):
         end = layout[path[-1]]
         print(' {} {}"/>'.format(end[0], end[1]))
 
-    #elif m == 3:
-    #    p000 = layout[path[0]]
-    #    # p001 = 1/3*layout[path[0]] + 2/3*layout[path[1]]
-    #    # p011 = 2/3*layout[path[1]] + 1/3*layout[path[2]]
-    #    p001 = 1/2*layout[path[0]] + 1/2*layout[path[1]]
-    #    p011 = 1/2*layout[path[1]] + 1/2*layout[path[2]]
-    #    p111 = layout[path[2]]
-    #    print('<path d="M {} {} C {} {} {} {} {} {}"/>'.format(p000[0],p000[1],p001[0],p001[1],p011[0],p011[1],p111[0],p111[1]))
-    #elif m == 4:
-    #    p000 = layout[path[0]]
-    #    p001 = layout[path[1]]
-    #    p011 = layout[path[2]]
-    #    p111 = layout[path[3]]
-    #    print('<path d="M {} {} C {} {} {} {} {} {}"/>'.format(p000[0],p000[1],p001[0],p001[1],p011[0],p011[1],p111[0],p111[1]))
-    #else:
-    #    nseg = m - 3
-    #    p000 = layout[path[0]]
-    #    p001 = layout[path[1]]
-    #    p011 = .5*layout[path[1]] + .5*layout[path[2]]
-    #    print('<path d="M {} {} C {} {} {} {}'.format(p000[0],p000[1],p001[0],p001[1],p011[0],p011[1]), end='')
-
-    #    for i in range(2, nseg):
-    #        p112 = .75*layout[path[i]] + .25*layout[path[i+1]] # symmetric about the knot
-    #        p111 = .5*p011 + .5*p112 # knot
-    #        p122 = .25*layout[path[i]] + .75*layout[path[i+1]]
-    #        print(' {} {} S {} {}'.format(p111[0],p111[1],p122[0],p122[1]), end='')
-    #        p011 = p122
-    #        
-    #    p112 = .5*layout[path[-3]] + .5*layout[path[-2]]
-    #    p111 = .5*p011 + .5*p112
-    #    p122 = layout[path[-2]]
-    #    p222 = layout[path[-1]]
-    #    print(' {} {} S {} {} {} {}"/>'.format(p111[0],p111[1],p122[0],p122[1],p222[0],p222[1]))
-
 # TODO: change number of significant figures for coordinates
 def draw_svg(rnodes, paths, layout, noderadius=.2, linkwidth=.05, width=750, border=50, linkopacity=1):
     X = layout
@@ -238,36 +187,27 @@ def draw_svg(rnodes, paths, layout, noderadius=.2, linkwidth=.05, width=750, bor
     # draw splines
     for path in paths:
         draw_bspline_quad(X_svg, path)
-        #draw_bspline_cubic(X_svg, path)
-    # draw nodes
+
+    # draw only leaf nodes
     for node in rnodes.values():
         if len(node.children) == 0:
             print('<circle cx="{}" cy="{}"/>'.format(X_svg[node.idx][0],X_svg[node.idx][1]))
-        #else:
-        #    print('<circle cx="{}" cy="{}" fill="red" fill-opacity=".5"/>'.format(X_svg[node.idx][0],X_svg[node.idx][1]))
 
     print('</svg>')
     
+def draw_confluent(I, J):
+    n = max(max(I), max(J)) + 1
+    Ir, Jr, Ip, Jp = cpp.routing_swig(n, I, J, 2, 1, 1)
 
-# I = [0,0,0, 1,1,1, 2,2,2]
-# J = [3,4,5, 3,4,5, 3,4,5]
-# Ir, Jr, Ip, Jp = cpp.routing(6, I, J)
+    rnodes = reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=True)
+    paths = find_spline_paths(rnodes)
 
-Ir = [6,6,6, 7,7, 8,8]
-Jr = [0,1,2, 3,8, 4,5]
-Ip = [6,9]
-Jp = [7,8]
+    I,J = get_routing_adjacency(rnodes)
+    layout = s_gd2.layout(len(rnodes), I, J)
 
-# Ir = []
-# Jr = []
-# Ip = [0,0,0, 1,1,1, 2,2,2, 6,6]
-# Jp = [3,4,5, 3,4,5, 3,4,5, 3,4]
+    draw_svg(rnodes, paths, layout)
 
-rnodes = reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=False)
-
-import s_gd2
-I,J = get_routing_adjacency(rnodes)
-layout = s_gd2.layout(len(rnodes), I, J)
-
-paths = find_spline_paths(rnodes)
-draw_svg(rnodes, paths, layout)
+if __name__ == "__main__":
+    I = [0,0,0, 1,1,1, 2,2,2, 6,6]
+    J = [3,4,5, 3,4,5, 3,4,5, 4,5]
+    draw_confluent(I, J)
