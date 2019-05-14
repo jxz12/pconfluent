@@ -230,19 +230,8 @@ int nmodules(module* m, module* n, int intersect)
 {
     // don't penalise when either child is a leaf, because it cannot ever be merged
 
-    // int modules;
-    // if (child1->children.size()==0 || child2->children.size()==0)
-    //     modules = 0;
-    // else if (child1->neighbours.size()==intersect && child2->neighbours.size()==intersect)
-    //     modules = 1;
-    // else if (child1->neighbours.size()!=intersect && child2->neighbours.size()!=intersect)
-    //     modules = -1;
-    // else
-    //     modules = 0;
-    // return modules;
-
-    return (m->children.size()==0 || n->children.size()==0)? 0 :
-           (m->neighbours.size()==intersect && n->neighbours.size()==intersect)? 1 :
+    //return (m->children.size()==0 || n->children.size()==0)? 0 :
+    return       (m->neighbours.size()==intersect && n->neighbours.size()==intersect)? 1 :
            (m->neighbours.size()!=intersect && n->neighbours.size()!=intersect)? -1 : 0;
 }
 int ncrossings(module* m, module* n, int intersect)
@@ -250,11 +239,7 @@ int ncrossings(module* m, module* n, int intersect)
     int diff1 = m->neighbours.size() - intersect;
     int diff2 = n->neighbours.size() - intersect;
 
-    int crossings = diff1 + diff2;
-    if (m->neighbours.find(n) != m->neighbours.end())
-    {
-        crossings -= 2;
-    }
+    int crossings = (m->neighbours.find(n)!=m->neighbours.end())? diff1+diff2 : diff1+diff2-2;
     return -crossings;
 }
 
@@ -316,6 +301,16 @@ void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& 
     }
 }
 
+// get memory fro a
+int* steal_vector_array(vector<int>& v)
+{
+    //*Ir = new int[*len_r];
+    //std::memcpy(*Ir, Ir_vec.data(), *len_r*sizeof(int));
+    int* stolen = v.data();
+    new (&v) std::vector<int>; // 'placement new' to replace v with empty vector, old storage leaked
+    return stolen;
+}
+
 // Ir & Jr are routing edges, Ip & Jp are power edges
 // these are all output parameters
 // to be used in swig
@@ -336,16 +331,12 @@ void routing_swig(int n, int m, int* I, int* J,
 
     // force a 'memory leak', so that python has access to the data
     *len_r = Ir_vec.size();
-    *Ir = new int[*len_r];
-    *Jr = new int[*len_r];
-    std::memcpy(*Ir, Ir_vec.data(), *len_r*sizeof(int));
-    std::memcpy(*Jr, Jr_vec.data(), *len_r*sizeof(int));
+    *Ir = steal_vector_array(Ir_vec);
+    *Jr = steal_vector_array(Jr_vec);
 
     *len_p = Ip_vec.size();
-    *Ip = new int[*len_p];
-    *Jp = new int[*len_p];
-    std::memcpy(*Ip, Ip_vec.data(), *len_p*sizeof(int));
-    std::memcpy(*Jp, Jp_vec.data(), *len_p*sizeof(int));
+    *Ip = steal_vector_array(Ip_vec);
+    *Jp = steal_vector_array(Jp_vec);
 
     delete_modules(root);
 }

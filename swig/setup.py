@@ -21,8 +21,8 @@ setup(
     version="0.1",
     author="Jonathan Zheng",
     author_email="jxz12@ic.ac.uk",
-    description="A package for...",
-    install_requires=['numpy'],
+    description="A package for producing power-confluent drawings (arXiv:1810.09948)",
+    install_requires=['numpy', 's_gd2'],
     setup_requires=['numpy'],
     #py_modules=['pconfuent'],
     ext_modules=[_pgd]
