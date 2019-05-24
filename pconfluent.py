@@ -58,7 +58,6 @@ def reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=False):
 
     return rnodes
 
-# TODO: perhaps make split edges shorter
 def get_routing_adjacency(rnodes, split_length=1):
     I = []
     J = []
@@ -74,28 +73,6 @@ def get_routing_adjacency(rnodes, split_length=1):
             V.append(1)
 
     return I,J,V
-
-#def get_radial_adjacency(rnodes, radius):
-#    I,J,V = get_routing_adjacency(rnodes)
-#    n = len(rnodes)
-#    for node in rnodes:
-#        if node.parent is None:
-#            radial_focus_depth(node, 1, radius, n, I,J,V)
-#
-#    return I,J,V
-#
-#def radial_focus_depth(node, depth, radius, n, I, J, V):
-#    if len(node.children) == 0:
-#        I.append(n)
-#        J.append(node.idx)
-#        V.append(radius)
-#        return depth
-#    else:
-#        max_depth = max(radial_focus_depth(child, depth+1, radius, n, I,J,V) for child in node.children)
-#        I.append(n)
-#        J.append(node.idx)
-#        V.append(radius * (depth/max_depth))
-#        return max_depth
 
 # DFS to init paths to one end
 def init_paths_to_leaves(node, stack, paths):
@@ -187,41 +164,6 @@ def draw_bspline_cubic(layout, path):
 
     return(''.join(svg))
 
-#def radial_layout(rnodes, radius):
-#    n = len(rnodes)
-#    layout = np.empty((n,2))
-#
-#    nleaves = sum(1 for node in rnodes if len(node.children) == 0)
-#    leaf_i = 0
-#    for node in rnodes:
-#        if node.parent is None:
-#            leaf_i = radial_leaves(node, leaf_i, nleaves, radius, layout)
-#            radial_branches(node, 1, radius, layout)
-#
-#    return layout
-#
-#from math import pi
-#def radial_leaves(node, i, nleaves, radius, layout):
-#    if len(node.children) == 0:
-#        angle = i / nleaves * 2 * pi
-#        layout[node.idx] = radius * np.array([np.cos(angle), np.sin(angle)])
-#        return i+1
-#    else:
-#        for node in node.children:
-#            i = radial_leaves(node, i, nleaves, radius, layout)
-#        return i
-#
-#def radial_branches(node, depth, radius, layout):
-#    if len(node.children) == 0:
-#        return depth
-#    else:
-#        max_depth = max(radial_branches(child, depth+1, radius, layout) for child in node.children)
-#        avg_angle = sum(np.arctan2(layout[child.idx][1],layout[child.idx][0]) for child in node.children) / len(node.children)
-#
-#        layout[node.idx] = radius * (depth/max_depth) * np.array([np.cos(avg_angle), np.sin(avg_angle)])
-#
-#        return max_depth
-
 
 # TODO: change number of significant figures for coordinates
 def draw_svg(rnodes, paths, layout, filepath=None,
@@ -267,7 +209,9 @@ def draw_svg(rnodes, paths, layout, filepath=None,
         with open(filepath, 'w') as f:
             f.write('\n'.join(svg))
     
-def draw_confluent(I, J, w_intersect=3, w_difference=1, nodesplit=True, filepath=None):
+
+# TODO: figure out why this doesn't work for I and J as numpy arrays?!
+def draw_confluent(I, J, w_intersect=10, w_difference=1, nodesplit=True, filepath=None):
     n = max(max(I), max(J)) + 1
     Ir, Jr, Ip, Jp = cpp.routing_swig(n, I, J, w_intersect, w_difference)
 
@@ -284,6 +228,7 @@ def draw_confluent(I, J, w_intersect=3, w_difference=1, nodesplit=True, filepath
 
     draw_svg(rnodes, paths, layout, filepath)
 
+    print(n)
     print('power edges: {}'.format(len(Ip)))
     print('power groups: {}'.format(max(max(Ir),max(Jr))+1-n))
 

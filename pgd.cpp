@@ -9,7 +9,6 @@ struct module
 {
     int idx;
 
-    // TODO: check if these are faster with vectors instead
     unordered_set<module*> neighbours;
     unordered_set<module*> children;
 
@@ -18,7 +17,7 @@ struct module
 };
 void delete_modules(module* root);
 
-void pgd(module* root, int w_intersect=3, int w_difference=1);
+void pgd(module* root, int w_intersect=10, int w_difference=1);
 
 int intersect(module* m, module* n);
 int difference(module* m, module* n, int s_intersect);
@@ -34,7 +33,6 @@ module::module(int idx) : idx(idx), neighbours(), children()
 
 // this initialises the module into a super module connected to trivial top modules
 // it does not matter what idx it takes
-// TODO: may be faster to use a vector rather than a root module like this
 module::module(int n, int m, int* I, int* J, int idx) : idx(idx)
 {
     // used to make graph undirected, in case it is not already
@@ -84,9 +82,8 @@ void pgd(module* root, int w_intersect, int w_difference)
         module* best1;
         module* best2;
         int best_score=0;
-        // TODO: store these scores in memory to reduce computation?
 
-        std::cerr << new_module_idx << std::endl;
+        //std::cerr << new_module_idx << std::endl;
 
         // find best merge out of all possible combinations
         for (auto child1 : root->children)
@@ -102,7 +99,8 @@ void pgd(module* root, int w_intersect, int w_difference)
 
                 // sum points for edges and modules
                 int score = s_intersect*w_intersect - s_difference*w_difference;
-                std::cerr << child1->idx << "+" << child2->idx << "=" << score << std::endl;
+
+                //std::cerr << child1->idx << "+" << child2->idx << "=" << score << std::endl;
                 
                 if (score > best_score)
                 {
@@ -114,6 +112,8 @@ void pgd(module* root, int w_intersect, int w_difference)
         }
         if (best_score == 0)
             break;
+
+        std::cerr << best1->idx << "+" << best2->idx << "=" << best_score << std::endl;
 
         // check if either module will be empty after the merge
         int best_intersect = intersect(best1, best2);
@@ -256,7 +256,7 @@ void add_routing_edges(const module* parent, vector<int>& Ir, vector<int>& Jr)
 {
     for (auto child : parent->children)
     {
-        std::cerr << "r: " << parent->idx << " " << child->idx << std::endl;
+        //std::cerr << "r: " << parent->idx << " " << child->idx << std::endl;
 
         Ir.push_back(parent->idx);
         Jr.push_back(child->idx);
@@ -267,7 +267,7 @@ void add_power_edges(const module* parent, vector<int>& Ip, vector<int>& Jp)
 {
     for (auto neighbour : parent->neighbours)
     {
-        std::cerr << "p: " << parent->idx << " " << neighbour->idx << std::endl;
+        //std::cerr << "p: " << parent->idx << " " << neighbour->idx << std::endl;
 
         if (parent->idx < neighbour->idx) // only add edges once
         {
@@ -285,7 +285,7 @@ void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& 
 {
     for (auto top : root->children) // 'throw away' root
     {
-        std::cerr << "top: " << top->idx << std::endl;
+        //std::cerr << "top: " << top->idx << std::endl;
         add_routing_edges(top, Ir, Jr);
         add_power_edges(top, Ip, Jp);
     }
