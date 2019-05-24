@@ -12,4 +12,4 @@ J = [3,4,5,3,4,5,3,4,5]
 draw_confluent(I, J, filepath='K33.svg')
 ```
 
-Splines are rendered in .svg format by using the Bohm method (explanation is included in the included .pdf file).
+Splines are rendered in .svg format by using the Boehm method to glue together quadratic Bezier curves (explanation can be found in the included .pdf file, uploaded here for convenience).

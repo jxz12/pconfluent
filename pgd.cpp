@@ -18,16 +18,15 @@ struct module
 };
 void delete_modules(module* root);
 
-void pgd(module* root, int edge_score=2, int module_score=1, int crossing_score=1);
+void pgd(module* root, int w_intersect=3, int w_difference=1);
 
-int nedges(module* m, module* n);
-int nmodules(module* m, module* n, int intersect);
-int ncrossings(module* m, module* n, int intersect);
+int intersect(module* m, module* n);
+int difference(module* m, module* n, int s_intersect);
 void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& Ip, vector<int>& Jp);
 
 void routing_swig(int n, int m, int* I, int* J,
                   int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
-                  int edge_weight=2, int module_weight=1, int crossing_weight=1);
+                  int w_intersect, int w_difference);
 
 
 module::module(int idx) : idx(idx), neighbours(), children()
@@ -77,7 +76,7 @@ void delete_modules(module* parent)
     delete parent;
 }
 
-void pgd(module* root, int edge_score, int module_score, int crossing_score)
+void pgd(module* root, int w_intersect, int w_difference)
 {
     int new_module_idx = root->children.size(); // assumes that indices are condensed
     while (true)
@@ -86,6 +85,8 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
         module* best2;
         int best_score=0;
         // TODO: store these scores in memory to reduce computation?
+
+        std::cerr << new_module_idx << std::endl;
 
         // find best merge out of all possible combinations
         for (auto child1 : root->children)
@@ -96,12 +97,11 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
                     continue;
 
                 // intersection is the number of eliminated edges
-                int intersect = nedges(child1, child2);
-                int modules = nmodules(child1, child2, intersect);
-                int crossings = ncrossings(child1, child2, intersect);
+                int s_intersect = intersect(child1, child2);
+                int s_difference = difference(child1, child2, s_intersect);
 
                 // sum points for edges and modules
-                int score = intersect*edge_score + modules*module_score + crossings*crossing_score;
+                int score = s_intersect*w_intersect - s_difference*w_difference;
                 std::cerr << child1->idx << "+" << child2->idx << "=" << score << std::endl;
                 
                 if (score > best_score)
@@ -115,10 +115,8 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
         if (best_score == 0)
             break;
 
-        std::cerr << new_module_idx << std::endl;
-
         // check if either module will be empty after the merge
-        int best_intersect = nedges(best1, best2);
+        int best_intersect = intersect(best1, best2);
         bool empty1 = (best1->children.size()!=0) && (best1->neighbours.size()==best_intersect);
         bool empty2 = (best2->children.size()!=0) && (best2->neighbours.size()==best_intersect);
         
@@ -201,7 +199,7 @@ void pgd(module* root, int edge_score, int module_score, int crossing_score)
 
 // almost exactly the same function as in the Dwyer paper,
 // except it simply returns the intersection
-int nedges(unordered_set<module*>& Nm, unordered_set<module*>& Nn)
+int intersect(unordered_set<module*>& Nm, unordered_set<module*>& Nn)
 {
     int num_intersect = 0;
     for (auto nm : Nm)
@@ -215,32 +213,24 @@ int nedges(unordered_set<module*>& Nm, unordered_set<module*>& Nn)
 }
 // make it take modules as input, and
 // always iterate through the smaller set for better complexity
-int nedges(module* m, module* n)
+int intersect(module* m, module* n)
 {
     if (m->neighbours.size() > n->neighbours.size())
     {
-        return nedges(m->neighbours, n->neighbours);
+        return intersect(m->neighbours, n->neighbours);
     }
     else
     {
-        return nedges(n->neighbours, m->neighbours);
+        return intersect(n->neighbours, m->neighbours);
     }
 }
-int nmodules(module* m, module* n, int intersect)
-{
-    // don't penalise when either child is a leaf, because it cannot ever be merged
-
-    //return (m->children.size()==0 || n->children.size()==0)? 0 :
-    return       (m->neighbours.size()==intersect && n->neighbours.size()==intersect)? 1 :
-           (m->neighbours.size()!=intersect && n->neighbours.size()!=intersect)? -1 : 0;
-}
-int ncrossings(module* m, module* n, int intersect)
+int difference(module* m, module* n, int intersect)
 {
     int diff1 = m->neighbours.size() - intersect;
     int diff2 = n->neighbours.size() - intersect;
 
-    int crossings = (m->neighbours.find(n)!=m->neighbours.end())? diff1+diff2 : diff1+diff2-2;
-    return -crossings;
+    // return (m->neighbours.find(n)!=m->neighbours.end())? diff1+diff2 : diff1+diff2-2;
+    return diff1+diff2;
 }
 
 void reindex_modules(module* root, int& new_idx)
@@ -316,11 +306,11 @@ int* steal_vector_array(vector<int>& v)
 // to be used in swig
 void routing_swig(int n, int m, int* I, int* J,
                   int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
-                  int edge_weight, int module_weight, int crossing_weight)
+                  int w_intersect, int w_difference)
 {
     // get power graph
     module* root = new module(n, m, I, J);
-    pgd(root, edge_weight, module_weight, crossing_weight);
+    pgd(root, w_intersect, w_difference);
 
     // condense indices
     reindex_modules_contiguous(root, n);

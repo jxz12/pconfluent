@@ -9,6 +9,7 @@ class routing_node:
         self.children = []
         self.pout = []
         self.pin = []
+        self.split = False
         
 def reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=False):
     """reconstructs the hierarchy of routing nodes from its edges."""
@@ -50,23 +51,51 @@ def reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=False):
                 splitnode.parent = node
                 node.children = [splitnode]
 
+                splitnode.split = True
+                #node.split = True
+
                 rnodes.append(splitnode)
 
     return rnodes
 
 # TODO: perhaps make split edges shorter
-def get_routing_adjacency(rnodes):
+def get_routing_adjacency(rnodes, split_length=1):
     I = []
     J = []
+    V = []
     for node in rnodes:
         for child in node.children:
             I.append(node.idx)
             J.append(child.idx)
+            V.append(split_length if child.split else 1)
         for pout in node.pout:
             I.append(node.idx)
             J.append(pout.idx)
+            V.append(1)
 
-    return I,J
+    return I,J,V
+
+#def get_radial_adjacency(rnodes, radius):
+#    I,J,V = get_routing_adjacency(rnodes)
+#    n = len(rnodes)
+#    for node in rnodes:
+#        if node.parent is None:
+#            radial_focus_depth(node, 1, radius, n, I,J,V)
+#
+#    return I,J,V
+#
+#def radial_focus_depth(node, depth, radius, n, I, J, V):
+#    if len(node.children) == 0:
+#        I.append(n)
+#        J.append(node.idx)
+#        V.append(radius)
+#        return depth
+#    else:
+#        max_depth = max(radial_focus_depth(child, depth+1, radius, n, I,J,V) for child in node.children)
+#        I.append(n)
+#        J.append(node.idx)
+#        V.append(radius * (depth/max_depth))
+#        return max_depth
 
 # DFS to init paths to one end
 def init_paths_to_leaves(node, stack, paths):
@@ -102,7 +131,7 @@ def find_spline_paths(rnodes):
 
     return all_paths
 
-def draw_bspline_quad(layout, path):
+def draw_bspline_quadratic(layout, path):
     """draws a quadratic b-spline, with an open knot vector but no repeated control points"""
     svg = []
     m = len(path)
@@ -158,6 +187,42 @@ def draw_bspline_cubic(layout, path):
 
     return(''.join(svg))
 
+#def radial_layout(rnodes, radius):
+#    n = len(rnodes)
+#    layout = np.empty((n,2))
+#
+#    nleaves = sum(1 for node in rnodes if len(node.children) == 0)
+#    leaf_i = 0
+#    for node in rnodes:
+#        if node.parent is None:
+#            leaf_i = radial_leaves(node, leaf_i, nleaves, radius, layout)
+#            radial_branches(node, 1, radius, layout)
+#
+#    return layout
+#
+#from math import pi
+#def radial_leaves(node, i, nleaves, radius, layout):
+#    if len(node.children) == 0:
+#        angle = i / nleaves * 2 * pi
+#        layout[node.idx] = radius * np.array([np.cos(angle), np.sin(angle)])
+#        return i+1
+#    else:
+#        for node in node.children:
+#            i = radial_leaves(node, i, nleaves, radius, layout)
+#        return i
+#
+#def radial_branches(node, depth, radius, layout):
+#    if len(node.children) == 0:
+#        return depth
+#    else:
+#        max_depth = max(radial_branches(child, depth+1, radius, layout) for child in node.children)
+#        avg_angle = sum(np.arctan2(layout[child.idx][1],layout[child.idx][0]) for child in node.children) / len(node.children)
+#
+#        layout[node.idx] = radius * (depth/max_depth) * np.array([np.cos(avg_angle), np.sin(avg_angle)])
+#
+#        return max_depth
+
+
 # TODO: change number of significant figures for coordinates
 def draw_svg(rnodes, paths, layout, filepath=None,
              noderadius=.2, linkwidth=.05, width=750, border=50, linkopacity=1):
@@ -184,12 +249,15 @@ def draw_svg(rnodes, paths, layout, filepath=None,
 
     # draw splines
     for path in paths:
-        svg.append(draw_bspline_quad(X_svg, path))
+        svg.append(draw_bspline_quadratic(X_svg, path))
+        #svg.append(draw_bspline_cubic(X_svg, path))
 
     # draw only leaf nodes
     for node in rnodes:
         if len(node.children) == 0:
             svg.append('<circle cx="{}" cy="{}"/>'.format(X_svg[node.idx][0],X_svg[node.idx][1]))
+        #else:
+        #    svg.append('<circle cx="{}" cy="{}" fill="red" opacity=".5"/>'.format(X_svg[node.idx][0],X_svg[node.idx][1]))
 
     svg.append('</svg>')
 
@@ -199,21 +267,23 @@ def draw_svg(rnodes, paths, layout, filepath=None,
         with open(filepath, 'w') as f:
             f.write('\n'.join(svg))
     
-def draw_confluent(I, J, edge_weight=1, module_weight=1, crossing_weight=1, nodesplit=True, filepath=None):
+def draw_confluent(I, J, w_intersect=3, w_difference=1, nodesplit=True, filepath=None):
     n = max(max(I), max(J)) + 1
-    Ir, Jr, Ip, Jp = cpp.routing_swig(n, I, J, edge_weight, module_weight, crossing_weight)
+    Ir, Jr, Ip, Jp = cpp.routing_swig(n, I, J, w_intersect, w_difference)
+
 
     rnodes = reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=nodesplit)
     paths = find_spline_paths(rnodes)
 
-    I,J = get_routing_adjacency(rnodes)
-    layout = s_gd2.layout(len(rnodes), I, J)
+
+    I,J,V = get_routing_adjacency(rnodes, split_length=.5)
+    layout = s_gd2.layout_convergent(I, J, V, t_max=50)
+
+    #I,J,V = get_radial_adjacency(rnodes, 2.5)
+    #layout = s_gd2.layout_focus(I,J,len(rnodes),V)
 
     draw_svg(rnodes, paths, layout, filepath)
 
-if __name__ == "__main__":
-    #I = [0,0,0, 1,1,1, 2,2,2, 6,6]
-    #J = [3,4,5, 3,4,5, 3,4,5, 4,5]
-    I = [0,0,0,0, 1,1,1, 2,2, 3,3,3, 4,4,4, 5]
-    J = [1,2,3,4, 2,6,7, 6,7, 4,6,7, 5,6,7, 6]
-    draw_confluent(I, J, filepath='test.svg')
+    print('power edges: {}'.format(len(Ip)))
+    print('power groups: {}'.format(max(max(Ir),max(Jr))+1-n))
+

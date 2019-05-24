@@ -3,7 +3,7 @@
     #define SWIG_FILE_WITH_INIT
     extern void routing_swig(int n, int m, int* I, int* J,
                              int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
-                             int edge_weight=2, int module_weight=1, int crossing_weight=1);
+                             int w_intersect=3, int w_difference=1);
 %}
 
 %include "numpy.i"
@@ -27,7 +27,7 @@
 
 extern void routing_swig(int n, int m, int* I, int* J,
                          int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
-                         int edge_weight=2, int module_weight=1, int crossing_weight=1);
+                         int w_intersect=3, int w_difference=1);
 
 %rename (routing_swig) np_routing;
 %exception np_routing {
@@ -43,13 +43,13 @@ extern void routing_swig(int n, int m, int* I, int* J,
                     int** Jr, int* len_Jr,
                     int** Ip, int* len_Ip,
                     int** Jp, int* len_Jp,
-                    int edge_weight, int module_weight, int crossing_weight) {
+                    int w_intersect, int w_difference) {
 
         if (len_I != len_J) {
             PyErr_Format(PyExc_ValueError, "arrays of indices do not have same length");
             return;
         }
-        routing_swig(n, len_I, I, J, len_Ir, Ir, Jr, len_Ip, Ip, Jp, edge_weight, module_weight, crossing_weight);
+        routing_swig(n, len_I, I, J, len_Ir, Ir, Jr, len_Ip, Ip, Jp, w_intersect, w_difference);
         *len_Jr = *len_Ir;
         *len_Jp = *len_Ip;
     }
