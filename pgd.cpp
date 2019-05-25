@@ -19,10 +19,11 @@ void delete_modules(module* root);
 
 void pgd(module* root, int w_intersect=10, int w_difference=1);
 
+module* merge(module* m, module* n, int new_module_idx);
 int intersect(module* m, module* n);
 int difference(module* m, module* n, int s_intersect);
-void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& Ip, vector<int>& Jp);
 
+void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& Ip, vector<int>& Jp);
 void routing_swig(int n, int m, int* I, int* J,
                   int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
                   int w_intersect, int w_difference);
@@ -76,7 +77,7 @@ void delete_modules(module* parent)
 
 void pgd(module* root, int w_intersect, int w_difference)
 {
-    int new_module_idx = root->children.size(); // assumes that indices are condensed
+    int new_module_idx = -1; // assume all indices are positive
     while (true)
     {
         module* best1;
@@ -113,87 +114,94 @@ void pgd(module* root, int w_intersect, int w_difference)
         if (best_score == 0)
             break;
 
-        std::cerr << best1->idx << "+" << best2->idx << "=" << best_score << std::endl;
+        std::cerr << best1->idx << " U " << best2->idx << " = " << best_score << std::endl;
 
-        // check if either module will be empty after the merge
-        int best_intersect = intersect(best1, best2);
-        bool empty1 = (best1->children.size()!=0) && (best1->neighbours.size()==best_intersect);
-        bool empty2 = (best2->children.size()!=0) && (best2->neighbours.size()==best_intersect);
-        
-        // perform the merge itself
-        // TODO: only iterate through the smaller sets in the following for loops
-        if (empty1 && empty1) // full merge
+        module* merged = merge(best1, best2, new_module_idx--);
+        root->children.erase(best1);
+        root->children.erase(best2);
+        root->children.insert(merged);
+    }
+}
+
+// merges two modules and returns the new parent (which may be one of the original two)
+module* merge(module* best1, module* best2, int new_module_idx)
+{
+    // check if either module will be empty after the merge
+    int best_intersect = intersect(best1, best2);
+    bool empty1 = (best1->children.size()!=0) && (best1->neighbours.size()==best_intersect);
+    bool empty2 = (best2->children.size()!=0) && (best2->neighbours.size()==best_intersect);
+    
+    // perform the merge itself
+    // TODO: only iterate through the smaller sets in the following for loops
+    if (empty1 && empty2) // full merge
+    {
+        // both neighbour sets are the same
+        // therefore just delete one of them, the other adopting their children
+        for (auto child : best2->children)
         {
-            // both neighbour sets are the same
-            // therefore just delete one of them, the other adopting their children
-            for (auto child : best2->children)
-            {
-                best1->children.insert(child);
-            }
-            for (auto neighbour : best2->neighbours)
-            {
-                // clear hanging neighbours
-                neighbour->neighbours.erase(best2);
-            }
-            root->children.erase(best2);
-            delete best2;
+            best1->children.insert(child);
         }
-        else if (empty1)
+        for (auto neighbour : best2->neighbours)
         {
-            // best1 will be left with no neighbours, and so is identical to the new parent
-            // therefore remove all shared edges in 2, then parent 2 to 1
-            for (auto neighbour : best1->neighbours)
+            // clear hanging neighbours
+            neighbour->neighbours.erase(best2);
+        }
+        delete best2;
+        return best1;
+    }
+    else if (empty1)
+    {
+        // best1 will be left with no neighbours, and so is identical to the new parent
+        // therefore remove all shared edges in 2, then parent 2 to 1
+        for (auto neighbour : best1->neighbours)
+        {
+            best2->neighbours.erase(neighbour);
+            neighbour->neighbours.erase(best1);
+            neighbour->neighbours.erase(best2);
+            neighbour->neighbours.insert(best1);
+        }
+        best1->children.insert(best2);
+        return best1;
+    }
+    else if (empty2)
+    {
+        // above vice versa
+        for (auto neighbour : best2->neighbours)
+        {
+            best1->neighbours.erase(neighbour);
+            neighbour->neighbours.erase(best1);
+            neighbour->neighbours.erase(best2);
+            neighbour->neighbours.insert(best2);
+        }
+        best2->children.insert(best1);
+        return best2;
+    }
+    else // neither empty, so new module
+    {
+        // create new module and move all shared edges to it, parent both to new
+        module* new_parent = new module(new_module_idx);
+
+        for (auto neighbour : best1->neighbours)
+        {
+            if (best2->neighbours.find(neighbour) != best2->neighbours.end())
             {
-                best2->neighbours.erase(neighbour);
+                // move all shared edges to new module
                 neighbour->neighbours.erase(best1);
                 neighbour->neighbours.erase(best2);
-                neighbour->neighbours.insert(best1);
+                neighbour->neighbours.insert(new_parent);
+                new_parent->neighbours.insert(neighbour);
             }
-            best1->children.insert(best2);
-            root->children.erase(best2);
         }
-        else if (empty2)
+        for (auto neighbour : new_parent->neighbours)
         {
-            // above vice versa
-            for (auto neighbour : best2->neighbours)
-            {
-                best1->neighbours.erase(neighbour);
-                neighbour->neighbours.erase(best1);
-                neighbour->neighbours.erase(best2);
-                neighbour->neighbours.insert(best2);
-            }
-            best2->children.insert(best1);
-            root->children.erase(best1);
+            // remove shared from originals
+            best1->neighbours.erase(neighbour);
+            best2->neighbours.erase(neighbour);
         }
-        else // neither empty, so new module
-        {
-            // create new module and move all shared edges to it, parent both to new
-            module* new_parent = new module(new_module_idx++);
-
-            for (auto neighbour : best1->neighbours)
-            {
-                if (best2->neighbours.find(neighbour) != best2->neighbours.end())
-                {
-                    // move all shared edges to new module
-                    neighbour->neighbours.erase(best1);
-                    neighbour->neighbours.erase(best2);
-                    neighbour->neighbours.insert(new_parent);
-                    new_parent->neighbours.insert(neighbour);
-                }
-            }
-            for (auto neighbour : new_parent->neighbours)
-            {
-                // remove shared from originals
-                best1->neighbours.erase(neighbour);
-                best2->neighbours.erase(neighbour);
-            }
-            // parent to new
-            new_parent->children.insert(best1);
-            new_parent->children.insert(best2);
-            root->children.insert(new_parent);
-            root->children.erase(best1);
-            root->children.erase(best2);
-        }
+        // parent to new
+        new_parent->children.insert(best1);
+        new_parent->children.insert(best2);
+        return new_parent;
     }
 }
 

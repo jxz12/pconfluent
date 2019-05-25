@@ -215,20 +215,15 @@ def draw_confluent(I, J, w_intersect=10, w_difference=1, nodesplit=True, filepat
     n = max(max(I), max(J)) + 1
     Ir, Jr, Ip, Jp = cpp.routing_swig(n, I, J, w_intersect, w_difference)
 
-
     rnodes = reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=nodesplit)
     paths = find_spline_paths(rnodes)
 
-
     I,J,V = get_routing_adjacency(rnodes, split_length=.5)
-    layout = s_gd2.layout_convergent(I, J, V, t_max=50)
-
-    #I,J,V = get_radial_adjacency(rnodes, 2.5)
-    #layout = s_gd2.layout_focus(I,J,len(rnodes),V)
+    layout = s_gd2.layout_convergent(I, J, V)
 
     draw_svg(rnodes, paths, layout, filepath)
 
-    print(n)
-    print('power edges: {}'.format(len(Ip)))
-    print('power groups: {}'.format(max(max(Ir),max(Jr))+1-n))
+    #print('{} {}'.format(n,len(I)))
+    #print('power edges: {}'.format(len(Ip)))
+    #print('power groups: {}'.format(max(max(Ir),max(Jr))+1-n))
 
