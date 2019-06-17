@@ -307,7 +307,7 @@ void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& 
     }
 }
 
-// get memory fro a
+// create a memory leak on purpose, so that SWIG can take over and give it to Python
 int* steal_vector_array(vector<int>& v)
 {
     //*Ir = new int[*len_r];
