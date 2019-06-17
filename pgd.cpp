@@ -205,8 +205,7 @@ module* merge(module* best1, module* best2, int new_module_idx)
     }
 }
 
-// almost exactly the same function as in the Dwyer paper,
-// except it simply returns the intersection
+// returns the intersection of neighbour sets
 int intersect(unordered_set<module*>& Nm, unordered_set<module*>& Nn)
 {
     int num_intersect = 0;
@@ -232,6 +231,8 @@ int intersect(module* m, module* n)
         return intersect(n->neighbours, m->neighbours);
     }
 }
+// returns the symmetric difference between neighbour sets
+// takes intersect as input for O(1) complexity
 int difference(module* m, module* n, int intersect)
 {
     int diff1 = m->neighbours.size() - intersect;
@@ -240,6 +241,13 @@ int difference(module* m, module* n, int intersect)
     // return (m->neighbours.find(n)!=m->neighbours.end())? diff1+diff2 : diff1+diff2-2;
     return diff1+diff2;
 }
+
+
+
+
+/////////////////////////////////
+// non-algorithm functions here
+// these are used for interfacing with SWIG and python
 
 void reindex_modules(module* root, int& new_idx)
 {
