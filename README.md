@@ -12,4 +12,5 @@ J = [3,4,5,3,4,5,3,4,5]
 draw_confluent(I, J, filepath='K33.svg')
 ```
 
+The power graph construction algorithm is written in C++ for speed, while the power-to-routing graph conversion and drawing is in Python.
 Splines are rendered in .svg format by using the Boehm method to glue together quadratic Bezier curves (explanation can be found in the included .pdf file, uploaded here for convenience).

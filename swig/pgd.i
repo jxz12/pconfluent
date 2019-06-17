@@ -3,7 +3,7 @@
     #define SWIG_FILE_WITH_INIT
     extern void routing_swig(int n, int m, int* I, int* J,
                              int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
-                             int w_intersect=10, int w_difference=1);
+                             int w_intersect, int w_difference);
 %}
 
 %include "numpy.i"
@@ -22,7 +22,7 @@
 
 extern void routing_swig(int n, int m, int* I, int* J,
                          int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
-                         int w_intersect=10, int w_difference=1);
+                         int w_intersect, int w_difference);
 
 %rename (routing_swig) np_routing;
 %exception np_routing {

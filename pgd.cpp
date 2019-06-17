@@ -17,7 +17,7 @@ struct module
 };
 void delete_modules(module* root);
 
-void pgd(module* root, int w_intersect=10, int w_difference=1);
+void pgd(module* root, int w_intersect, int w_difference);
 
 module* merge(module* m, module* n, int new_module_idx);
 int intersect(module* m, module* n);
@@ -52,7 +52,7 @@ module::module(int n, int m, int* I, int* J, int idx) : idx(idx)
         if (i >= n || j >= n)
             throw "i or j bigger than n";
 
-        if (undirected[j].find(i) == undirected[j].end()) // cuts out repeat edges
+        if (i != j && undirected[j].find(i) == undirected[j].end()) // cuts out repeat edges
         {
             undirected[i].insert(j);
             undirected[j].insert(i);
@@ -114,7 +114,7 @@ void pgd(module* root, int w_intersect, int w_difference)
         if (best_score == 0)
             break;
 
-        std::cerr << best1->idx << " U " << best2->idx << " = " << best_score << std::endl;
+        //std::cerr << best1->idx << " U " << best2->idx << " = " << best_score << std::endl;
 
         module* merged = merge(best1, best2, new_module_idx--);
         root->children.erase(best1);

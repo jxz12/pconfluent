@@ -210,9 +210,8 @@ def draw_svg(rnodes, paths, layout, filepath=None,
             f.write('\n'.join(svg))
     
 
-# TODO: figure out why this doesn't work for I and J as numpy arrays?!
 def draw_confluent(I, J, w_intersect=10, w_difference=1, nodesplit=True, filepath=None):
-    n = max(max(I), max(J)) + 1
+    n = int(max(max(I), max(J)) + 1)
     Ir, Jr, Ip, Jp = cpp.routing_swig(n, I, J, w_intersect, w_difference)
 
     rnodes = reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=nodesplit)
