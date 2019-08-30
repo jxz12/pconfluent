@@ -299,14 +299,16 @@ void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& 
     }
 }
 
-// get memory fro a
+// https://stackoverflow.com/questions/56127946/can-i-force-stdvector-to-leave-a-memory-leak
 int* steal_vector_array(vector<int>& v)
 {
-    //*Ir = new int[*len_r];
-    //std::memcpy(*Ir, Ir_vec.data(), *len_r*sizeof(int));
     int* stolen = v.data();
     new (&v) std::vector<int>; // 'placement new' to replace v with empty vector, old storage leaked
     return stolen;
+    
+    // below is also an option, but requires a copy
+    //*Ir = new int[*len_r];
+    //std::memcpy(*Ir, Ir_vec.data(), *len_r*sizeof(int));
 }
 
 // Ir & Jr are routing edges, Ip & Jp are power edges
@@ -316,25 +318,33 @@ void routing_swig(int n, int m, int* I, int* J,
                   int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
                   int w_intersect, int w_difference)
 {
-    // get power graph
-    module* root = new module(n, m, I, J);
-    pgd(root, w_intersect, w_difference);
+    try
+    {
+        // initialise empty modules
+        module* root = new module(n, m, I, J);
+        // get power graph
+        pgd(root, w_intersect, w_difference);
 
-    // condense indices
-    reindex_modules_contiguous(root, n);
+        // condense indices possibly made sparse from merges
+        reindex_modules_contiguous(root, n);
 
-    // get routing graph
-    vector<int> Ir_vec, Jr_vec, Ip_vec, Jp_vec;
-    routing(root, Ir_vec, Jr_vec, Ip_vec, Jp_vec);
+        // get routing graph
+        vector<int> Ir_vec, Jr_vec, Ip_vec, Jp_vec;
+        routing(root, Ir_vec, Jr_vec, Ip_vec, Jp_vec);
 
-    // force a 'memory leak', so that python has access to the data
-    *len_r = Ir_vec.size();
-    *Ir = steal_vector_array(Ir_vec);
-    *Jr = steal_vector_array(Jr_vec);
+        // force a 'memory leak', so that python has access to the data
+        *len_r = Ir_vec.size();
+        *Ir = steal_vector_array(Ir_vec);
+        *Jr = steal_vector_array(Jr_vec);
 
-    *len_p = Ip_vec.size();
-    *Ip = steal_vector_array(Ip_vec);
-    *Jp = steal_vector_array(Jp_vec);
+        *len_p = Ip_vec.size();
+        *Ip = steal_vector_array(Ip_vec);
+        *Jp = steal_vector_array(Jp_vec);
 
-    delete_modules(root);
+        delete_modules(root);
+    }
+    catch (const char* msg)
+    {
+        std::cerr << "Error: " << msg << std::endl;
+    }
 }
