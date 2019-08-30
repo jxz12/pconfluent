@@ -12,6 +12,7 @@ except AttributeError:
 _pgd = Extension(
     name="_pgd",
     sources=["pgd_wrap.cxx", "pgd.cpp"],
+    headers=["pgd.hpp"],
     extra_compile_args=["-std=c++11"],
     include_dirs=[numpy_include]
 )
