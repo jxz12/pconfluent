@@ -2,32 +2,10 @@
 #include <unordered_set>
 #include <iostream>
 
+#include "pgd.hpp"
+
 using std::vector;
 using std::unordered_set;
-
-struct module
-{
-    int idx;
-
-    unordered_set<module*> neighbours;
-    unordered_set<module*> children;
-
-    module(int idx);
-    module(int n, int m, int* I, int* J, int idx=-1);
-};
-void delete_modules(module* root);
-
-void pgd(module* root, int w_intersect, int w_difference);
-
-module* merge(module* m, module* n, int new_module_idx);
-int intersect(module* m, module* n);
-int difference(module* m, module* n, int s_intersect);
-
-void routing(const module* root, vector<int>& Ir, vector<int>& Jr, vector<int>& Ip, vector<int>& Jp);
-void routing_swig(int n, int m, int* I, int* J,
-                  int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
-                  int w_intersect, int w_difference);
-
 
 module::module(int idx) : idx(idx), neighbours(), children()
 {}
@@ -220,7 +198,7 @@ int intersect(unordered_set<module*>& Nm, unordered_set<module*>& Nn)
     return num_intersect;
 }
 // make it take modules as input, and
-// always iterate through the smaller set for better complexity
+// always iterate through the smaller set for speed
 int intersect(module* m, module* n)
 {
     if (m->neighbours.size() > n->neighbours.size())
@@ -232,10 +210,10 @@ int intersect(module* m, module* n)
         return intersect(n->neighbours, m->neighbours);
     }
 }
-int difference(module* m, module* n, int intersect)
+int difference(module* m, module* n, int size_intersect)
 {
-    int diff1 = m->neighbours.size() - intersect;
-    int diff2 = n->neighbours.size() - intersect;
+    int diff1 = m->neighbours.size() - size_intersect;
+    int diff2 = n->neighbours.size() - size_intersect;
 
     // return (m->neighbours.find(n)!=m->neighbours.end())? diff1+diff2 : diff1+diff2-2;
     return diff1+diff2;
