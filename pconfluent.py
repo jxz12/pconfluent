@@ -117,19 +117,19 @@ def draw_bspline_quadratic(layout, path):
     if m == 2:
         p0 = layout[path[0]]
         p1 = layout[path[1]]
-        svg.append('<path d="M {} {} L {} {}"/>'.format(p0[0],p0[1],p1[0],p1[1]))
+        svg.append('<path d="M {:.1f} {:.1f} L {:.1f} {:.1f}"/>'.format(p0[0],p0[1],p1[0],p1[1]))
     else:
         nseg = m - 2
         p00 = layout[path[0]]
         p01 = layout[path[1]]
-        svg.append('<path d="M {} {} Q {} {}'.format(p00[0],p00[1],p01[0],p01[1]))
+        svg.append('<path d="M {:.1f} {:.1f} Q {:.1f} {:.1f}'.format(p00[0],p00[1],p01[0],p01[1]))
 
         for i in range(1, nseg):
             p11 = .5*layout[path[i]] + .5*layout[path[i+1]]
-            svg.append(' {} {} T'.format(p11[0], p11[1]))
+            svg.append(' {:.1f} {:.1f} T'.format(p11[0], p11[1]))
             
         p22 = layout[path[-1]]
-        svg.append(' {} {}"/>'.format(p22[0],p22[1]))
+        svg.append(' {:.1f} {:.1f}"/>'.format(p22[0],p22[1]))
 
     return(''.join(svg))
 
@@ -142,12 +142,12 @@ def draw_bspline_cubic(layout, path):
     if m == 2:
         p0 = layout[path[0]]
         p1 = layout[path[1]]
-        svg.append('<path d="M {} {} L {} {}"/>'.format(p0[0],p0[1],p1[0],p1[1]))
+        svg.append('<path d="M {:.1f} {:.1f} L {:.1f} {:.1f}"/>'.format(p0[0],p0[1],p1[0],p1[1]))
     else:
         p000 = layout[path[0]] # not strictly correct, but works
         p112 = 2/3*layout[path[0]] + 1/3*layout[path[1]]
         p122 = 1/3*layout[path[0]] + 2/3*layout[path[1]]
-        svg.append('<path d="M {} {} C {} {} {} {}'.format(p000[0],p000[1],p112[0],p112[1],p122[0],p122[1]))
+        svg.append('<path d="M {:.1f} {:.1f} C {:.1f} {:.1f} {:.1f} {:.1f}'.format(p000[0],p000[1],p112[0],p112[1],p122[0],p122[1]))
 
         for i in range(1, len(path)-1):
             p123 = layout[path[i]]
@@ -156,18 +156,18 @@ def draw_bspline_cubic(layout, path):
             p233 = 1/3*p123 + 2/3*p234
             p222 = .5*p122 + .5*p223
 
-            svg.append(' {} {} S {} {}'.format(p222[0], p222[1], p233[0], p233[1]))
+            svg.append(' {:.1f} {:.1f} S {:.1f} {:.1f}'.format(p222[0], p222[1], p233[0], p233[1]))
             p122 = p233
 
         end = layout[path[-1]]
-        svg.append(' {} {}"/>'.format(end[0], end[1]))
+        svg.append(' {:.1f} {:.1f}"/>'.format(end[0], end[1]))
 
     return(''.join(svg))
 
 
 # TODO: change number of significant figures for coordinates
 def draw_svg(rnodes, paths, layout, filepath=None,
-             noderadius=.2, linkwidth=.05, width=750, border=50, linkopacity=1):
+             noderadius=.2, linkwidth=.05, width=750, border=50, nodeopacity=1, linkopacity=1):
     X = layout
     n = len(X)
     X_min = [min(X[i,0] for i in range(n)), min(X[i,1] for i in range(n))]
@@ -183,10 +183,10 @@ def draw_svg(rnodes, paths, layout, filepath=None,
         X_svg[i] += [border + scale*noderadius, border + scale*noderadius]
             
     svg = []
-    svg.append('<svg width="{}" height="{}" xmlns="http://www.w3.org/2000/svg">'.format(width, width))
+    svg.append('<svg width="{:.0f}" height="{:.0f}" xmlns="http://www.w3.org/2000/svg">'.format(width, width))
     svg.append('<style type="text/css">')
-    svg.append('path{{stroke:black;stroke-width:{};stroke-opacity:{};stroke-linecap:round;fill:transparent}}'.format(scale*linkwidth,linkopacity))
-    svg.append('circle{{r:{}}}'.format(scale*noderadius))
+    svg.append('path{{stroke:black;stroke-width:{:.3f};stroke-opacity:{:.3f};stroke-linecap:round;fill:transparent}}'.format(scale*linkwidth,linkopacity))
+    svg.append('circle{{r:{:.3f};fill:black;fill-opacity:{:.3f}}}'.format(scale*noderadius,nodeopacity))
     svg.append('</style>');
 
     # draw splines
@@ -194,10 +194,10 @@ def draw_svg(rnodes, paths, layout, filepath=None,
         svg.append(draw_bspline_quadratic(X_svg, path))
         #svg.append(draw_bspline_cubic(X_svg, path))
 
-    # draw only leaf nodes
     for node in rnodes:
+        # draw only leaf nodes
         if len(node.children) == 0:
-            svg.append('<circle cx="{}" cy="{}"/>'.format(X_svg[node.idx][0],X_svg[node.idx][1]))
+            svg.append('<circle cx="{:.1f}" cy="{:.1f}"/>'.format(X_svg[node.idx][0],X_svg[node.idx][1]))
         #else:
         #    svg.append('<circle cx="{}" cy="{}" fill="red" opacity=".5"/>'.format(X_svg[node.idx][0],X_svg[node.idx][1]))
 
