@@ -96,8 +96,8 @@ except __builtin__.Exception:
     _newclass = 0
 
 
-def routing_swig(*args):
-    return _pgd.routing_swig(*args)
+def routing_swig(n, I, J, w_intersect, w_difference):
+    return _pgd.routing_swig(n, I, J, w_intersect, w_difference)
 routing_swig = _pgd.routing_swig
 # This file is compatible with both classic and new-style classes.
 

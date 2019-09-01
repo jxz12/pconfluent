@@ -1,9 +1,7 @@
 %module pgd
 %{
     #define SWIG_FILE_WITH_INIT
-    extern void routing_swig(int n, int m, int* I, int* J,
-                             int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
-                             int w_intersect, int w_difference);
+    #include "pgd.hpp"
 %}
 
 %include "numpy.i"
@@ -15,14 +13,13 @@
 %apply (int* IN_ARRAY1, int DIM1){(int* I, int len_I),
                                   (int* J, int len_J)}
 
+// requires memory 'leak'
 %apply (int** ARGOUTVIEWM_ARRAY1, int* DIM1){(int** Ir, int* len_Ir),
                                              (int** Jr, int* len_Jr),
                                              (int** Ip, int* len_Ip),
                                              (int** Jp, int* len_Jp)}
 
-extern void routing_swig(int n, int m, int* I, int* J,
-                         int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
-                         int w_intersect, int w_difference);
+#include "pgd.hpp"
 
 %rename (routing_swig) np_routing;
 %exception np_routing {

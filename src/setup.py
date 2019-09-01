@@ -19,7 +19,7 @@ _pgd = Extension(
 
 setup(
     name="pconfluent",
-    version="0.1.1",
+    version="0.1.2",
     author="Jonathan Zheng",
     author_email="jxz12@ic.ac.uk",
     description="A package for producing power-confluent drawings (arXiv:1810.09948)",

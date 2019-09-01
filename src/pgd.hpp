@@ -2,7 +2,9 @@
 #define PGD_HPP
 
 #include <vector>
+#include <unordered_set>
 using std::vector;
+using std::unordered_set;
 
 ///////////////////////
 // visible to python //
