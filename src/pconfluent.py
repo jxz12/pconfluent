@@ -2,6 +2,8 @@ import pgd as cpp
 import numpy as np
 import s_gd2
 
+__all__ = ['draw_confluent']
+
 class routing_node:
     def __init__(self, idx):
         self.idx = idx
@@ -165,7 +167,6 @@ def draw_bspline_cubic(layout, path):
     return(''.join(svg))
 
 
-# TODO: change number of significant figures for coordinates
 def draw_svg(rnodes, paths, layout, filepath=None,
              noderadius=.2, linkwidth=.05, width=750, border=50, nodeopacity=1, linkopacity=1):
     X = layout
@@ -210,14 +211,14 @@ def draw_svg(rnodes, paths, layout, filepath=None,
             f.write('\n'.join(svg))
     
 
-def draw_confluent(I, J, w_intersect=10, w_difference=1, nodesplit=True, filepath=None):
+def draw_confluent(I, J, w_intersect=10, w_difference=1, nodesplit=True, split_length=.5, filepath=None):
     n = int(max(max(I), max(J)) + 1)
     Ir, Jr, Ip, Jp = cpp.routing_swig(n, I, J, w_intersect, w_difference)
 
     rnodes = reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=nodesplit)
     paths = find_spline_paths(rnodes)
 
-    I,J,V = get_routing_adjacency(rnodes, split_length=.5)
+    I,J,V = get_routing_adjacency(rnodes, split_length=split_length)
     layout = s_gd2.layout_convergent(I, J, V)
 
     draw_svg(rnodes, paths, layout, filepath)
