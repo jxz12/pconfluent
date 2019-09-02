@@ -14,8 +14,7 @@ I = [0,0,0,1,1,1,2,2,2]
 J = [3,4,5,3,4,5,3,4,5]
 draw_confluent(I, J, filepath='K33.svg')
 ```
-
-The function
+where the function
 ```python3
 draw_confluent(I, J, w_intersect=10, w_difference=1, nodesplit=True, split_length=.5, filepath=None)
 ```
