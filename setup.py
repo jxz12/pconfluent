@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from setuptools.extension import Extension
 
 # Third-party modules - we depend on numpy for everything
@@ -11,19 +11,20 @@ except AttributeError:
 
 _pgd = Extension(
     name="_pgd",
-    sources=["pgd_wrap.cxx", "pgd.cpp"],
     headers=["pgd.hpp"],
+    sources=["pconfluent/pgd.cpp", "pconfluent/swig/pgd_wrap.cxx"],
     extra_compile_args=["-std=c++11"],
     include_dirs=[numpy_include]
 )
 
 setup(
     name="pconfluent",
-    version="0.2",
+    version="0.3",
     author="Jonathan Zheng",
     author_email="jxz12@ic.ac.uk",
+    url="https://www.github.com/jxz12/pconfluent",
     description="A package for producing power-confluent drawings (arXiv:1810.09948)",
-    install_requires=['numpy', 's_gd2'],
-    py_modules=['pconfluent', 'pgd'],
+    install_requires=['numpy'],
+    py_modules=find_packages(),
     ext_modules=[_pgd]
 )

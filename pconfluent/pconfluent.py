@@ -1,8 +1,7 @@
-import pgd as cpp
+from .swig import pgd as cpp
 import numpy as np
 import s_gd2
-
-__all__ = ['draw_confluent']
+__all__ = ['find_power_graph', 'draw_confluent']
 
 class routing_node:
     def __init__(self, idx):
@@ -26,7 +25,7 @@ def reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=False):
         j = Jr[ij]
         rnodes[i].children.append(rnodes[j])
         if rnodes[j].parent is not None:
-            raise "node has more than one parent"
+            raise ValueError("node has more than one parent")
         rnodes[j].parent = rnodes[i]
 
     # add power edges
@@ -115,7 +114,7 @@ def draw_bspline_quadratic(layout, path):
     svg = []
     m = len(path)
     if m < 2:
-        raise "path is less than 2 points long"
+        raise ValueError("path is less than 2 points long")
     if m == 2:
         p0 = layout[path[0]]
         p1 = layout[path[1]]
@@ -140,7 +139,7 @@ def draw_bspline_cubic(layout, path):
     svg = []
     m = len(path)
     if m < 2:
-        raise "path is less than 2 points long"
+        raise ValueError("path is less than 2 points long")
     if m == 2:
         p0 = layout[path[0]]
         p1 = layout[path[1]]
@@ -188,7 +187,7 @@ def draw_svg(rnodes, paths, layout, filepath=None,
     svg.append('<style type="text/css">')
     svg.append('path{{stroke:black;stroke-width:{:.3f};stroke-opacity:{:.3f};stroke-linecap:round;fill:transparent}}'.format(scale*linkwidth,linkopacity))
     svg.append('circle{{r:{:.3f};fill:black;fill-opacity:{:.3f}}}'.format(scale*noderadius,nodeopacity))
-    svg.append('</style>');
+    svg.append('</style>')
 
     # draw splines
     for path in paths:
@@ -210,16 +209,26 @@ def draw_svg(rnodes, paths, layout, filepath=None,
         with open(filepath, 'w') as f:
             f.write('\n'.join(svg))
     
-
-def draw_confluent(I, J, w_intersect=10, w_difference=1, nodesplit=True, split_length=.5, filepath=None):
+def find_power_graph(I, J, w_intersect=10, w_difference=1):
+    """takes a graph with edges I,J, and returns a power
+    graph with routing edges Ir,Jr and power edges Ip,Jp.
+    Note that this treats the graph as undirected, and will
+    internally convert edges to be undirected if not already."""
     n = int(max(max(I), max(J)) + 1)
     Ir, Jr, Ip, Jp = cpp.routing_swig(n, I, J, w_intersect, w_difference)
+    return Ir, Jr, Ip, Jp
 
+def draw_confluent(Ir, Jr, Ip, Jp, nodesplit=True, split_length=.5, filepath=None):
+    """takes a power graph with routing edges Ir,Jr and
+    power edges Ip,Jp and draws the corresponding power-confluent
+    drawing, using quadratic bezier splines to thread through the
+    routing graph. The graph layout is performed by stochastic
+    gradient descent, and the drawing is rendered in .svg format."""
     rnodes = reconstruct_routing(Ir, Jr, Ip, Jp, nodesplit=nodesplit)
     paths = find_spline_paths(rnodes)
 
     I,J,V = get_routing_adjacency(rnodes, split_length=split_length)
-    layout = s_gd2.layout_convergent(I, J, V)
+    layout = s_gd2.layout(I, J, V)
 
     draw_svg(rnodes, paths, layout, filepath)
 

@@ -29,8 +29,8 @@ void delete_modules(module* root);
 
 void pgd(module* root, int w_intersect, int w_difference);
 module* merge(module* m, module* n, int new_module_idx);
-int intersect(module* m, module* n);
-int intersect(unordered_set<module*>& Nm, unordered_set<module*>& Nn);
+unsigned intersect(module* m, module* n);
+unsigned intersect(unordered_set<module*>& Nm, unordered_set<module*>& Nn);
 int difference(module* m, module* n, int size_intersect);
 
 void reindex_modules(module* root, int& new_idx);

@@ -1,7 +1,7 @@
 %module pgd
 %{
     #define SWIG_FILE_WITH_INIT
-    #include "pgd.hpp"
+    #include "../pgd.hpp"
 %}
 
 %include "numpy.i"
@@ -19,12 +19,16 @@
                                              (int** Ip, int* len_Ip),
                                              (int** Jp, int* len_Jp)}
 
-#include "pgd.hpp"
+#include "../pgd.hpp"
 
+%include exception.i
 %rename (routing_swig) np_routing;
 %exception np_routing {
-    $action
-    if (PyErr_Occurred()) SWIG_fail;
+    try {
+        $action
+    } catch (std::invalid_argument e) {
+        SWIG_exception(SWIG_RuntimeError, e.what());
+    }
 }
 
 %inline %{

@@ -1,6 +1,7 @@
 #include <vector>
 #include <unordered_set>
-#include <iostream>
+#include <exception>
+// #include <iostream>
 
 #include "pgd.hpp"
 
@@ -28,7 +29,7 @@ module::module(int n, int m, int* I, int* J, int idx) : idx(idx)
     {
         int i = I[ij], j = J[ij];
         if (i >= n || j >= n)
-            throw "i or j bigger than n";
+            throw std::invalid_argument("i or j bigger than n");
 
         if (i != j && undirected[j].find(i) == undirected[j].end()) // cuts out repeat edges
         {
@@ -105,7 +106,7 @@ void pgd(module* root, int w_intersect, int w_difference)
 module* merge(module* best1, module* best2, int new_module_idx)
 {
     // check if either module will be empty after the merge
-    int best_intersect = intersect(best1, best2);
+    unsigned best_intersect = intersect(best1, best2);
     bool empty1 = (best1->children.size()!=0) && (best1->neighbours.size()==best_intersect);
     bool empty2 = (best2->children.size()!=0) && (best2->neighbours.size()==best_intersect);
     
@@ -185,9 +186,9 @@ module* merge(module* best1, module* best2, int new_module_idx)
 
 // almost exactly the same function as in the Dwyer paper,
 // except it simply returns the intersection
-int intersect(unordered_set<module*>& Nm, unordered_set<module*>& Nn)
+unsigned intersect(unordered_set<module*>& Nm, unordered_set<module*>& Nn)
 {
-    int num_intersect = 0;
+    unsigned num_intersect = 0;
     for (auto nm : Nm)
     {
         if (Nn.find(nm) != Nn.end())
@@ -199,7 +200,7 @@ int intersect(unordered_set<module*>& Nm, unordered_set<module*>& Nn)
 }
 // make it take modules as input, and
 // always iterate through the smaller set for speed
-int intersect(module* m, module* n)
+unsigned intersect(module* m, module* n)
 {
     if (m->neighbours.size() > n->neighbours.size())
     {
@@ -296,33 +297,26 @@ void routing_swig(int n, int m, int* I, int* J,
                   int* len_r, int** Ir, int** Jr, int* len_p, int** Ip, int** Jp,
                   int w_intersect, int w_difference)
 {
-    try
-    {
-        // initialise empty modules
-        module* root = new module(n, m, I, J);
-        // get power graph
-        pgd(root, w_intersect, w_difference);
+    // initialise empty modules
+    module* root = new module(n, m, I, J);
+    // get power graph
+    pgd(root, w_intersect, w_difference);
 
-        // condense indices possibly made sparse from merges
-        reindex_modules_contiguous(root, n);
+    // condense indices possibly made sparse from merges
+    reindex_modules_contiguous(root, n);
 
-        // get routing graph
-        vector<int> Ir_vec, Jr_vec, Ip_vec, Jp_vec;
-        routing(root, Ir_vec, Jr_vec, Ip_vec, Jp_vec);
+    // get routing graph
+    vector<int> Ir_vec, Jr_vec, Ip_vec, Jp_vec;
+    routing(root, Ir_vec, Jr_vec, Ip_vec, Jp_vec);
 
-        // force a 'memory leak', so that python has access to the data
-        *len_r = Ir_vec.size();
-        *Ir = steal_vector_array(Ir_vec);
-        *Jr = steal_vector_array(Jr_vec);
+    // force a 'memory leak', so that python has access to the data
+    *len_r = Ir_vec.size();
+    *Ir = steal_vector_array(Ir_vec);
+    *Jr = steal_vector_array(Jr_vec);
 
-        *len_p = Ip_vec.size();
-        *Ip = steal_vector_array(Ip_vec);
-        *Jp = steal_vector_array(Jp_vec);
+    *len_p = Ip_vec.size();
+    *Ip = steal_vector_array(Ip_vec);
+    *Jp = steal_vector_array(Jp_vec);
 
-        delete_modules(root);
-    }
-    catch (const char* msg)
-    {
-        std::cerr << "Error: " << msg << std::endl;
-    }
+    delete_modules(root);
 }

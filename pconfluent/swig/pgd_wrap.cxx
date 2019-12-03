@@ -3001,6 +3001,9 @@ SWIG_Python_NonDynamicSetAttr(PyObject *obj, PyObject *name, PyObject *value) {
 
 
 
+  #define SWIG_exception(code, msg) do { SWIG_Error(code, msg); SWIG_fail;; } while(0) 
+
+
 /* -------- TYPES TABLE (BEGIN) -------- */
 
 #define SWIGTYPE_p_char swig_types[0]
@@ -3113,7 +3116,7 @@ namespace swig {
 
 
     #define SWIG_FILE_WITH_INIT
-    #include "pgd.hpp"
+    #include "../pgd.hpp"
 
 
 #ifndef SWIG_FILE_WITH_INIT
@@ -3875,8 +3878,11 @@ SWIGINTERN PyObject *_wrap_routing_swig(PyObject *SWIGUNUSEDPARM(self), PyObject
   } 
   arg15 = static_cast< int >(val15);
   {
-    np_routing(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9,arg10,arg11,arg12,arg13,arg14,arg15);
-    if (PyErr_Occurred()) SWIG_fail;
+    try {
+      np_routing(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9,arg10,arg11,arg12,arg13,arg14,arg15);
+    } catch (std::invalid_argument e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
   }
   resultobj = SWIG_Py_Void();
   {
