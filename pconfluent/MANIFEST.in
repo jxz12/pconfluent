@@ -1,2 +1,2 @@
 include LICENSE
-include pgd.hpp
+recursive-include pconfluent *.hpp *.py
