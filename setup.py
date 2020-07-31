@@ -11,7 +11,7 @@ except AttributeError:
 
 _pgd = Extension(
     name="_pgd",
-    headers=["pgd.hpp"],
+    headers=["pconfluent/pgd.hpp"],
     sources=["pconfluent/pgd.cpp", "pconfluent/swig/pgd_wrap.cxx"],
     extra_compile_args=["-std=c++11"],
     include_dirs=[numpy_include]
@@ -19,7 +19,7 @@ _pgd = Extension(
 
 setup(
     name="pconfluent",
-    version="0.3",
+    version="0.4",
     author="Jonathan Zheng",
     author_email="jxz12@ic.ac.uk",
     url="https://www.github.com/jxz12/pconfluent",
